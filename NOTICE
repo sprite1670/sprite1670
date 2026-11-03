@@ -1,0 +1,12 @@
+# NOTICE
+
+This project automates the WorkBuddy "Buddy Station" daily check-in.
+The API surface was reverse-engineered from the WorkBuddy desktop client and
+is not officially documented — endpoints, headers and error codes may change
+in any client update.
+
+You are responsible for:
+  - complying with the terms of service of the services you automate;
+  - keeping your own credentials (AirScript-Token, refresh tokens) private —
+    the repository ships empty templates, never commit real values;
+  - setting appropriate permissions on any sheet that stores a token.

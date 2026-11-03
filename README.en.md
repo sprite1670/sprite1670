@@ -225,4 +225,4 @@ chunked writes that dodge content filters, and the closed-loop self-healing.
 
 ## License
 
-MIT
+MIT — full text in [`LICENSE`](LICENSE), usage caveats in [`NOTICE`](NOTICE).
