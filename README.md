@@ -60,7 +60,45 @@ python3 scripts/wb_checkin.py auto
 5. **建脚本令牌**：编辑器工具栏的「脚本令牌(beta)」（盾牌图标）→ 创建并复制
    （需实名认证；每个用户仅一个，默认 180 天可延期）
 6. **填凭据**：把 file_id / script_id / token 填进 `scripts/kdocs_config.json`
-7. **挂自愈调度**（可选）：用 WorkBuddy 的定时任务每天跑一次 `python3 scripts/cloud_guard.py`
+   - `token` = 第 5 步复制的脚本令牌
+   - `file_id` / `script_id` = 第 4 步之后，在编辑器左侧脚本栏点「更多」→「复制脚本 webhook」，
+     链接形如：
+     `https://www.kdocs.cn/api/v3/ide/file/<file_id>/script/<script_id>/sync_task`
+     —— **尖括号里就是这两个值**（前段是 file_id，后段是 script_id）
+7. **挂自愈调度**（可选，但推荐）：用 WorkBuddy 的定时任务每天跑一次
+   `python3 scripts/cloud_guard.py` —— 云端签到失败时它会自动取新令牌、更新 B1 并立刻重签
+
+> 步骤 1-7 想自动生成一份带你自己表格地址的清单，可运行：
+> `python3 scripts/setup_cloud.py --url <你的表格URL>`，会在 `scripts/deploy/cloud/` 下产出
+> DEPLOY.md、配置模板与 AirScript 副本。
+
+### 日常运维（配置好之后基本不用管）
+
+| 情况 | 你要做什么 |
+|---|---|
+| 一切正常 | 什么都不用做。08:00 云端自动签到，令牌自己续期 |
+| B5 显示 `FAIL` | 令牌被作废了。在电脑上跑 `python3 scripts/wb_checkin.py auto` 取新令牌，
+再把新令牌填进 B1（云端脚本下一次运行会自动用它） |
+| 想加推送通知 | B3 填 Bark / 企微 / 钉钉的 webhook 地址 |
+| 想手动补签一次 | 在 AirScript 编辑器点「运行」，或 `python3 scripts/kdocs_cloud.py run --force` |
+
+## 它是怎么工作的
+
+```
+08:00  ┌ 金山文档云端 ────────────────────────┐
+       │  定时任务 → AirScript                 │
+       │    刷新令牌 → 换新令牌写回 B1（自我续期） │
+       │    每日签到 → 写 B2/B5/B6/B7          │
+       └──────────────────────────────────────┘
+10:00  ┌ 本机 WorkBuddy 定时任务 ───────────────┐
+       │  读表格判定状态                          │
+       │    OK   → 不动（不打扰令牌）             │
+       │    FAIL → 取新令牌 → 写回 B1 → 立即重签  │
+       └──────────────────────────────────────┘
+```
+
+为什么能做到电脑关机也能签到：脚本跑在金山文档的**云端 JS 引擎**上，
+由金山文档自己的定时任务触发，跟你的电脑开不开机无关。
 
 ## 配置文件
 
@@ -129,7 +167,6 @@ workbuddy-checkin/
     ├── cloud_guard.py                    # 自愈守护
     ├── split_token.py                    # 令牌分段（规避敏感审批）
     ├── setup_cloud.py                    # 部署向导
-    ├── deploy_helper.py                  # 旧版部署向导
     ├── check_kdocs_ready.py              # 部署就绪核验
     └── kdocs_config.json                 # 凭据（空白模板）
 ```
