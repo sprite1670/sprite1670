@@ -1,5 +1,7 @@
 # WorkBuddy Daily Check-in Automation — Skill
 
+> Package: <https://github.com/sprite1670/sprite1670> — drag the zip into WorkBuddy’s *Import Skill* dialog.
+
 > Fully automate the WorkBuddy "Buddy Station" (Buddy 加油站) daily check-in:
 > it signs in **even when your computer is off**, and self-heals when a check-in fails.
 

@@ -1,5 +1,7 @@
 # WorkBuddy 每日签到自动化 Skill
 
+> 安装包：<https://github.com/sprite1670/sprite1670> ｜ 直接拖入 WorkBuddy「导入技能」即可
+
 > 让 WorkBuddy「Buddy 加油站」签到**全自动化**：电脑关机也能按时签到，签到失败会自动修复。
 
 ## 它能做什么
