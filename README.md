@@ -196,3 +196,7 @@ workbuddy-checkin/
 
 接口逆向自 WorkBuddy 桌面端实现，社区亦有同源方案可参考（AirScript 定时签到 + 猫猫旅行）。
 本 Skill 的差异点：内存扫描取密钥（无需重启客户端）、分段写入规避敏感审批、失败自愈闭环。
+
+## License
+
+MIT —— 完整条款见 [`LICENSE`](LICENSE)，使用须知见 [`NOTICE`](NOTICE)。
