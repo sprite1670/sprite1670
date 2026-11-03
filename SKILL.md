@@ -1,11 +1,11 @@
 ---
 name: workbuddy-checkin
-description: WorkBuddy「Buddy 加油站」每日自动签到全流程自动化，含云端方案（电脑关机也能签到）。Windows 下扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询、令牌自动续期回写；一键部署金山文档云端 AirScript + 定时任务（电脑关机仍按时签到）；失败自愈守护（云端签到失败才自动取新令牌、更新部署、立即重签）。触发词：WorkBuddy 签到、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、云端签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
+description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（08:00 由金山文档定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败才自动取新令牌、更新部署并立即重签。Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询一键完成。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
 agent_created: true
 version: "2.0.0"
 ---
 
-# WorkBuddy 签到自动化（内存取密钥 · 云端定时 · 失败自愈 · 零依赖）
+# WorkBuddy 云端签到自愈守护（内存取密钥 · 云端定时 · 失败自愈 · 零依赖）
 
 WorkBuddy 签到本质是一次带鉴权凭据的 HTTP 请求，不需要模拟 GUI 点击。本 Skill 提供**两条签到路径**
 与**一套自愈闭环**，全部脚本零第三方依赖。

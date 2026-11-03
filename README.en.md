@@ -1,11 +1,34 @@
-# WorkBuddy Daily Check-in Automation — Skill
+# WorkBuddy Cloud Check-in with Self-Healing — Skill
+
+> **In one line: it signs in on schedule even when your PC is off, and repairs itself
+> when a check-in fails — you never have to touch it.**
 
 > Package: <https://github.com/sprite1670/sprite1670> — drag the zip into WorkBuddy’s *Import Skill* dialog.
 
-> Fully automate the WorkBuddy "Buddy Station" (Buddy 加油站) daily check-in:
-> it signs in **even when your computer is off**, and self-heals when a check-in fails.
-
 [简体中文](README.md)
+
+## ☁️ Cloud Check-in with Self-Healing (the core capability)
+
+This is what separates this skill from an ordinary check-in script: it is **not** a
+scheduled task running on your machine — it is a **self-healing loop running on
+Kingsoft Docs' cloud JS engine**:
+
+| | Typical local script | This skill |
+|---|---|---|
+| PC powered off | ❌ no check-in | ✅ **the cloud still signs in** (08:00, fired by Kingsoft Docs' own scheduler) |
+| Token expires | ❌ the script dies | ✅ **the cloud renews and rewrites B1 on every run** |
+| A day's check-in fails | ❌ manual debugging | ✅ **the guard fetches a new token → redeploys → re-signs immediately** |
+| Your effort | —— | **nothing** |
+
+```
+08:00  Kingsoft Docs cloud scheduler → AirScript → refresh token (auto-renew, rewrite B1) → check in → write B2/B5/B6/B7
+                                                                                                  ↓ on failure
+10:00  Local self-heal guard          → read sheet  → fetch new token → write B1 → remote re-sign → verify
+```
+
+> **Cloud check-in** delivers *on-schedule sign-ins* (PC may be off).
+> **The self-heal guard** delivers *automatic repair* when one fails.
+> Together they are what "cloud check-in with self-healing" means.
 
 ## What It Does
 
