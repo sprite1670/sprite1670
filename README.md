@@ -35,91 +35,62 @@
 | 🖥️ 本机签到 | 一条命令完成「扫描内存取密钥 → 解密 → 刷新 → 签到 → 连签查询」 |
 | 📊 状态可查 | 表格 B2 看最近结果、B5 看状态、B7 看连签天数 |
 
-## 快速开始
+## 快速开始 —— 按需选一条路径
 
-### 1. 安装
+两条路径**互不依赖**，可以只用其中一条，也可以两条都开。
 
-把本目录放到 `~/.workbuddy/skills/workbuddy-checkin/`（Windows：`C:\Users\<你>\.workbuddy\skills\workbuddy-checkin\`），
-或在 WorkBuddy 里说「安装 skill workbuddy-checkin」。
+| | 路径 A · 本机签到 | 路径 B · 云端签到（电脑关机也行） |
+|---|---|---|
+| **要几步** | **2 步** | 约 7 步（其中 4 步在金山文档编辑器里点） |
+| **电脑关机** | ❌ 跑不了 | ✅ **照签** |
+| **令牌过期** | 本机每次自动换新 | 云端每次运行自动换新 |
+| **失败自愈** | — | ✅ 自动取新令牌并重签 |
+| **适合谁** | 想马上用的人 | 想要「躺着也签到」的人 |
 
-### 2. 前置条件
+### 路径 A · 本机签到（2 步）
 
-| 项 | 要求 |
-|---|---|
-| 操作系统 | **Windows**（内存扫描依赖 Win32 API）。macOS/Linux 请改用 `workbuddy-token-extract`（CDP 方案） |
-| WorkBuddy | 客户端已登录并运行中（解密密钥只在运行中的进程内存里） |
-| 依赖 | Python 3 + Node.js 18+（脚本会自动找 WorkBuddy 自带的 Node） |
-| 金山文档 | 需要「智能表格（.ksheet）」—— 外部调用凭据「脚本令牌」只在智能表格提供 |
+**第 1 步**：双击 `scripts\install.bat`
+→ 自动体检环境（Python / Node / 客户端是否运行 / 云端配置）+ **跑一次真实签到**，
+最后告诉你能不能用。
 
-### 3. 本机签到（即时见效）
-
+**第 2 步**：以后想签就双击它，或直接跑：
 ```bash
-cd ~/.workbuddy/skills/workbuddy-checkin
 python3 scripts/wb_checkin.py auto
 ```
 
-输出示例：
+> 前提：Windows + WorkBuddy 客户端**正在运行**（解密密钥只在运行中的进程内存里）。
 
-```
-[*] 候选进程(8): [...]
-[*] 信封 keyId: 9127dea1b44020a7（候选 1 个，按 keyId 校验）
-[+] refreshToken 解密成功 (1567 字符)
-[+] 刷新成功 code=0，accessToken 1566 字符
-[+] 签到成功 +100 积分
-[*] 连签 19 天 | 本期累计 1900 分 | 今日已签: True
-```
+### 路径 B · 云端签到（电脑关机也能签）
 
-### 4. 云端签到（电脑关机也能签）
+在路径 A 之上再加一层「云端托管」。**需要一次性配置，之后永久免维护。**
 
-一次性配置，详见 `scripts/setup_cloud.py --url <你的表格URL>` 生成的部署清单：
+1. **新建智能表格**
+   金山文档 → 新建 → **智能表格**（`.ksheet`）。
+   ⚠️ 必须用智能表格，**普通表格（.xlsx）拿不到「脚本令牌」**，而令牌是云端调度的关键。
+2. **粘贴脚本**
+   「效率 → 高级开发 → **AirScript 脚本编辑器**」→ 新建 → 粘贴
+   `assets/workbuddy-checkin-cloud.airscript.js` 全文 → **Ctrl+S 保存**（存到【文档共享脚本】）。
+3. **开通网络权限**
+   编辑器工具栏「**服务**」→「添加服务」→ 勾选「**网络API**」→ 确定。
+   *（不加这个，脚本发不出请求，会静默失败。）*
+4. **建定时任务**
+   「效率 → 高级开发 → **定时任务**」→ 新建 → 选「**每天**」→ **09:00** → 关联上面那个脚本 → 保存。
+   *（建议再加一条 21:00 的兜底。）*
+5. **建脚本令牌**
+   编辑器工具栏的「**脚本令牌(beta)**」（盾牌图标）→ 勾选「我已知晓」→ 创建 → 复制。
+   *（需完成实名认证；每个用户仅一个，默认 180 天可延期。）*
+6. **填凭据**
+   把三个值填进 `scripts/kdocs_config.json`：
+   - `token` = 第 5 步复制的令牌
+   - `file_id` / `script_id` = 左侧脚本栏「更多」→「复制脚本 webhook」，链接形如
+     `https://www.kdocs.cn/api/v3/ide/file/<file_id>/script/<script_id>/sync_task`，
+     **尖括号里就是这两个值**（前段 file_id，后段 script_id）。
+7. **挂自愈守护**（可选但推荐）
+   用 WorkBuddy 的定时任务每天跑一次 `python3 scripts/cloud_guard.py` ——
+   云端签到失败时它会自动取新令牌、更新 B1、并远程立即重签。
 
-1. **新建智能表格**（金山文档 → 新建 → 智能表格，`.ksheet`）
-2. **粘贴脚本**：`assets/workbuddy-checkin-cloud.airscript.js` 全文粘到「效率 → 高级开发 → AirScript 脚本编辑器」，
-   保存到【文档共享脚本】
-3. **开通网络权限**：编辑器「服务」→「添加服务」→ 勾选「网络API」
-4. **建定时任务**：「效率 → 高级开发 → 定时任务」→ 每天 09:00 → 关联脚本
-5. **建脚本令牌**：编辑器工具栏的「脚本令牌(beta)」（盾牌图标）→ 创建并复制
-   （需实名认证；每个用户仅一个，默认 180 天可延期）
-6. **填凭据**：把 file_id / script_id / token 填进 `scripts/kdocs_config.json`
-   - `token` = 第 5 步复制的脚本令牌
-   - `file_id` / `script_id` = 第 4 步之后，在编辑器左侧脚本栏点「更多」→「复制脚本 webhook」，
-     链接形如：
-     `https://www.kdocs.cn/api/v3/ide/file/<file_id>/script/<script_id>/sync_task`
-     —— **尖括号里就是这两个值**（前段是 file_id，后段是 script_id）
-7. **挂自愈调度**（可选，但推荐）：用 WorkBuddy 的定时任务每天跑一次
-   `python3 scripts/cloud_guard.py` —— 云端签到失败时它会自动取新令牌、更新 B1 并立刻重签
-
-> 步骤 1-7 想自动生成一份带你自己表格地址的清单，可运行：
-> `python3 scripts/setup_cloud.py --url <你的表格URL>`，会在 `scripts/deploy/cloud/` 下产出
-> DEPLOY.md、配置模板与 AirScript 副本。
-
-### 日常运维（配置好之后基本不用管）
-
-| 情况 | 你要做什么 |
-|---|---|
-| 一切正常 | 什么都不用做。08:00 云端自动签到，令牌自己续期 |
-| B5 显示 `FAIL` | 令牌被作废了。在电脑上跑 `python3 scripts/wb_checkin.py auto` 取新令牌，
-再把新令牌填进 B1（云端脚本下一次运行会自动用它） |
-| 想加推送通知 | B3 填 Bark / 企微 / 钉钉的 webhook 地址 |
-| 想手动补签一次 | 在 AirScript 编辑器点「运行」，或 `python3 scripts/kdocs_cloud.py run --force` |
-
-## 它是怎么工作的
-
-```
-08:00  ┌ 金山文档云端 ────────────────────────┐
-       │  定时任务 → AirScript                 │
-       │    刷新令牌 → 换新令牌写回 B1（自我续期） │
-       │    每日签到 → 写 B2/B5/B6/B7          │
-       └──────────────────────────────────────┘
-10:00  ┌ 本机 WorkBuddy 定时任务 ───────────────┐
-       │  读表格判定状态                          │
-       │    OK   → 不动（不打扰令牌）             │
-       │    FAIL → 取新令牌 → 写回 B1 → 立即重签  │
-       └──────────────────────────────────────┘
-```
-
-为什么能做到电脑关机也能签到：脚本跑在金山文档的**云端 JS 引擎**上，
-由金山文档自己的定时任务触发，跟你的电脑开不开机无关。
+> 想省事？运行 `python3 scripts/setup_cloud.py --url <你的表格URL>`，
+> 会生成一份带你自己表格地址的部署清单。
 
 ## 配置文件
 
@@ -182,6 +153,8 @@ workbuddy-checkin/
 │   ├── api-spec.md                       # 接口/信封/AAD/错误码
 │   └── troubleshooting.md                 # 排障手册
 └── scripts/
+    ├── install.bat                       # 环境体检 + 实时签到自测（双击即用）
+    ├── setup_check.py                    # 体检逻辑（被 install.bat 调用）
     ├── wb_checkin.py                     # 本机签到一体机
     ├── decrypt_envelope.js               # AES-256-GCM 解密器
     ├── kdocs_cloud.py                    # 云端 AirScript 调用器
