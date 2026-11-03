@@ -1,0 +1,13 @@
+# ── 凭据：含 AirScript-Token（等同于文档读写钥匙），绝不提交 ──
+scripts/kdocs_config.json
+scripts/deploy/cloud/kdocs_config.json
+
+# ── 运行时产物：含明文令牌 ──
+scripts/out/
+scripts/plan.json
+
+# ── 打包/临时 ──
+*.zip
+*.log
+__MACOSX/
+.DS_Store
