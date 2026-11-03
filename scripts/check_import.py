@@ -9,12 +9,18 @@ import sys
 import zipfile
 
 JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.")
-INSTANCE_RE = re.compile(
-    r"cporbcuKJqdE|cfOv4Nti2CtW|V2-2nGLlMrSA4unj23TmHNCX8"
-    r"|csHAacoLYk6e|PMgQ6VmBY1MtUw2UK1p5rxQx6s9tHHkjy"
-    r"|nUvykHL6qxMWnVgga9H7xxmHCZZ6NdFDt"
+# 凭据字段里出现【非空随机值】才算泄漏。
+# 值必须是纯字母数字（无空格/中文）、长度 >= 12、且同时含数字与字母——
+# 这样既能抓住真实凭据，又不会把 "your AirScript-Token" 这类说明文字误判。
+_SECRET_FIELD_RE = re.compile(
+    r'"(?:token|file_id|script_id|api[_-]?key|secret|password|passwd)"\s*:\s*"([A-Za-z0-9]{12,})"',
+    re.IGNORECASE,
 )
-TOKEN_LITERAL = "5hvttu10r8yI"
+
+
+def looks_random(v):
+    """是否为随机串形态：纯字母数字 + 同时含数字和字母。"""
+    return bool(re.search(r"\d", v)) and bool(re.search(r"[A-Za-z]", v))
 
 
 def extract_if_zip(path):
@@ -97,10 +103,10 @@ def main():
                 continue
             if JWT_RE.search(text):
                 bad.append((os.path.relpath(p, base), "JWT"))
-            if TOKEN_LITERAL in text:
-                bad.append((os.path.relpath(p, base), "AirScript-Token"))
-            if INSTANCE_RE.search(text):
-                bad.append((os.path.relpath(p, base), "实例ID"))
+            for m in _SECRET_FIELD_RE.finditer(text):
+                if looks_random(m.group(1)):
+                    bad.append((os.path.relpath(p, base), "凭据字段有值: " + m.group(0)[:40]))
+                    break
     if bad:
         for item, kind in bad:
             print("      FAIL %s -> %s" % (item, kind))
