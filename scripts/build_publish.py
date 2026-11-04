@@ -34,6 +34,7 @@ TMP = os.path.join(os.path.expanduser("~"), "tmp_skill_build")
 EXCLUDE_COPY = [
     "scripts/build_publish.py",
     "scripts/set_repo_meta.py",
+    "scripts/verify_publish_zip.py",  # 开发工具：复用 build_publish 的令牌表，本身不入包
     "scripts/kdocs_config.json",  # 真实凭据文件（此处为空白模板），用户应使用 example.json
 ]
 

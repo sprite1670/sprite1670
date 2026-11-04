@@ -13,7 +13,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed — grab a fresh token and re-run it automatically"
   - "Show my current check-in streak and total credits"
-version: "2.0.0"
+version: "2.0.1"
 author: sprite
 agent_created: true
 ---
