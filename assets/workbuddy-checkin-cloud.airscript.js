@@ -64,8 +64,23 @@ function readCell(addr) {
   catch (e) { return ""; }
 }
 
+// 写单元格：失败时打日志而不是静默吞掉。
+// 定时任务与手动运行的行为差异只在这里出现过，必须留痕。
 function writeCell(addr, val) {
-  try { Application.Range(addr).Value2 = val; } catch (e) {}
+  try {
+    Application.Range(addr).Value2 = val;
+    return true;
+  } catch (e) {
+    try { console.log("[WB] 写入失败 " + addr + ": " + (e && e.message ? e.message : e)); } catch (lg) {}
+    return false;
+  }
+}
+
+// 心跳：每次执行都往 B9 写一行时间戳。
+// 用途 —— 判断「定时任务到底跑没跑」：B9 有今天的时间戳就说明跑过，
+// 再看 B2/B5 就能区分「没跑」与「跑了但写单元格失败」。
+function heartbeat(stage) {
+  try { writeCell("B9", nowLabel() + " " + stage); } catch (e) {}
 }
 
 function sleep(ms) {
@@ -166,6 +181,7 @@ function main() {
   var webhook = readCell("B3");
   var fallbackCfg = readCell("B4");
   try { console.log("[WB] B1 读取长度=" + (rt ? rt.length : 0)); } catch (lc2) {}
+  heartbeat("启动");
 
   // 只查状态：把结果写进 B8（供外部读表），同时作为返回值传出
   if (checkOnly) {
