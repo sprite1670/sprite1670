@@ -45,6 +45,74 @@ REMOVE_FILES = [
     "references/api-spec.md",
 ]
 
+# ── 1b. 平台发布版专属的安全声明（替换仓库完整版 SECURITY.md）────
+# 仓库完整版的 SECURITY.md 含凭据提取/解密的完整技术细节（密钥名、API 名），
+# 发布版没有该能力，因此换成一份不含敏感字面量、但同样明确的风险声明。
+PUBLISH_SECURITY_MD = """# 安全声明与风险提示（SECURITY NOTICE）
+
+> ⚠️ **本技能涉及登录凭据的使用，请在使用前完整阅读本文件。**
+
+---
+
+## 1. 能力范围
+
+本技能用于自动化签到与失败自愈，核心依赖你**自己账号**的登录凭据
+（`refresh_token` / `access_token`）与你自己创建的脚本令牌（AirScript-Token）。
+
+凭据的获取方式取决于你选择的版本：
+
+| | 平台发布版（本包） | 完整版（GitHub 仓库） |
+|---|---|---|
+| 云端定时签到 | ✅ | ✅ |
+| 失败自愈守护 | ✅ | ✅ |
+| 远端触发重签 | ✅ | ✅ |
+| 自动获取/续期登录凭据 | ❌ **本包不含** | ✅ |
+
+> 📌 **本发布包不包含任何从其他应用进程内存中提取或解密登录凭据的能力。**
+> 你需要在本机自行维护 `refresh_token`，并填入表格 B1 单元格。
+
+---
+
+## 2. 风险提示
+
+- **凭据等同于你的登录态**：B1 单元格里存放的是明文令牌，任何能读到该表格的人
+  都可以用它代表你执行操作。请把表格权限设为「仅自己可见 / 可编辑」。
+- **令牌明文存储**：AirScript-Token 与 `refresh_token` 在你的设备与表格中以明文存在，
+  请勿分享截图、勿提交到公开仓库、勿在多台共用设备上使用。
+- **本机脚本拥有完整账号操作能力**：脚本会以你的身份调用签到与刷新接口。
+- **服务条款**：自动化调用可能与相关服务条款冲突，请自行确认合规性。
+
+---
+
+## 3. 缓解措施
+
+| 措施 | 说明 |
+|------|------|
+| 不入库 | 仓库只提供**空白模板**，真实配置与运行时产物均被 `.gitignore` 排除 |
+| 不外传 | 凭据仅在调用签到 / 刷新接口时上行，不经过任何第三方服务器 |
+| 最小权限 | 建议表格仅授权给自己；令牌如需轮换，随时可在 B1 覆盖 |
+
+---
+
+## 4. 漏洞报告
+
+发现安全问题请通过 GitHub 仓库的 **Security → Report a vulnerability** 私下报告，
+请勿直接开公开 issue。
+
+---
+
+## 5. 免责声明
+
+本技能按「现状」提供，不含任何明示或暗示担保。作者不对因使用本技能造成的
+账号风险、数据损失、条款违约或第三方损失承担责任。使用即视为你已充分知悉
+第 2 节所列全部风险，并自愿承担由此产生的一切后果。
+
+---
+
+*最后更新：2026-11-04*
+"""
+
+
 # ── 2. 代码文件精确改写 ──────────────────────────────────────────
 CLEAN_DO_HEAL = '''def do_heal(cfg, table_url, dry_run=False, log=print):
     """自愈流程（发布版）：不含进程内存取令牌能力，改为指导更新 B1。"""
@@ -98,6 +166,23 @@ CODE_PATCHES = {
 
 # ── 3. 文档脱敏替换（顺序：具体短语优先）──────────────────────────
 DOC_REPL = [
+    # ── 安全须知 / Security Notes 段 ──
+    ("- ⚠️ **本项目含「提取并解密另一应用登录凭据」能力**（读 WorkBuddy 进程内存 → 取密钥 → 解密登录态信封 → 得 `accessToken`/`refreshToken`/`idToken`）。凭据泄露即等于账号被接管，请仅在自有账号 + 受信任设备上使用。",
+     "- ⚠️ **凭据等同于你的登录态**，泄露即等于账号被接管。请仅在自有账号 + 受信任设备上使用，\n  并把存放令牌 B1 的表格权限设为「仅自己可见/可编辑」。"),
+    ("- ⚠️ **This project extracts and decrypts another application's login credentials**\n  (reads WorkBuddy process memory → obtains the key → decrypts the login-state envelope →\n  yields `accessToken` / `refreshToken` / `idToken`). A leaked credential equals a taken-over\n  account — use it only with your own account, on a device you trust.",
+     "- ⚠️ **These credentials are equivalent to your session** — a leak equals a taken-over\n  account. Use only with your own account, on a device you trust, and set the sheet that\n  holds the token to \"only me\"."),
+    ("完整版（含凭据提取与解密能力）的逐项风险、缓解措施与免责声明，见 [`SECURITY.md`](SECURITY.md)。要点：",
+     "逐项风险、缓解措施与免责声明见 [`SECURITY.md`](SECURITY.md)。要点："),
+    ("The full build contains the credential-extraction and decryption capability; see\n[`SECURITY.md`](SECURITY.md) for the complete risk breakdown, mitigations and disclaimer.\nKey points:",
+     "See [`SECURITY.md`](SECURITY.md) for the complete risk breakdown, mitigations and\ndisclaimer. Key points:"),
+    ("- 平台发布版（开放平台安装包）**不含**上述凭据提取能力，仅保留云端签到与自愈守护",
+     "- 本发布包**不含**任何从其他应用进程内存中提取或解密登录凭据的能力"),
+    ("- The published build on the WorkBuddy platform does **not** include the credential-extraction\n  capability — it keeps cloud check-in and self-healing only.",
+     "- This published build does **not** include any capability to extract or decrypt login\n  credentials from another application's process memory."),
+    # ── SKILL.md 安全红线里的能力声明 ──
+    ("> ⚠️ **能力风险声明（必读）**：本 Skill 完整版包含「从另一应用（WorkBuddy 客户端）进程内存中\n> 提取并解密其登录凭据」的高敏感能力 —— 读进程内存 → 取密钥材料 → 解密登录态信封 →\n> 得 `accessToken`/`refreshToken`/`idToken`。凭据泄露即等于账号被接管；使用方式可能与相关\n> 服务条款冲突。请仅在用户**自有账号**与**受信任的个人设备**上使用。\n> 完整风险、缓解措施与免责声明见 `SECURITY.md`；平台发布版**不含**该能力。\n> 执行本 Skill 前若用户未确认知悉上述风险，**必须先明确告知**。",
+     "> ⚠️ **能力风险声明（必读）**：本 Skill 使用用户的登录凭据（`refresh_token` / `access_token`）\n> 与用户自行创建的脚本令牌。凭据泄露即等于账号被接管；自动化调用可能与相关服务条款冲突。\n> 请仅在用户**自有账号**与**受信任的个人设备**上使用。\n> 完整风险、缓解措施与免责声明见 `SECURITY.md`。\n> 执行本 Skill 前若用户未确认知悉上述风险，**必须先明确告知**。"),
+
     ("扫描 WorkBuddy 客户端进程内存提取 atRestSecretKey，", "在本机从 WorkBuddy 取得 refresh_token（"),
     ("Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；", ""),
     ("扫描客户端进程内存提取 atRestSecretKey", "在本机从 WorkBuddy 取得 refresh_token"),
@@ -143,6 +228,90 @@ DOC_REPL = [
     ("decrypt_envelope.js", "本地完整版 skill 的解密工具"),
 ]
 
+# ── 3b. 文档块级替换（多行整段，必须在逐行替换之前执行）──────────
+# DOC_REPL 是逐行 replace，多行模式永远匹配不上 —— 顶部告示这类跨行块必须整段替换。
+DOC_BLOCK_REPL = [
+    # ── README.md 顶部中文告示 ──
+    ("> **本项目包含「从另一应用（WorkBuddy 客户端）的运行进程内存中提取并解密其登录凭据」的高敏感能力。**\n"
+     ">\n"
+     "> 具体行为：读取 WorkBuddy 进程内存 → 定位密钥材料 → 解密登录态信封 → 取出\n"
+     "> `accessToken` / `refreshToken` / `idToken` → 用于自动签到与令牌续期。\n"
+     ">\n"
+     "> **风险**：读取他人进程内存属高权限操作；提取出的凭据等价于你的登录态，泄露即等于账号被接管；\n"
+     "> 使用方式还可能与相关服务条款冲突。\n"
+     ">\n"
+     "> **请在动手前完整阅读 [`SECURITY.md`](SECURITY.md)**（含逐项风险、缓解措施、平台发布版差异与免责声明）。\n"
+     ">\n"
+     "> 📌 **从 WorkBuddy 开放平台安装的发布版已剥离该能力**（仅保留云端签到与自愈守护）；\n"
+     "> 具备该能力的完整版仅存在于本 GitHub 仓库，**请仅在你自己的账号与受信任的个人设备上使用**。",
+     "> **本技能使用你的登录凭据（`refresh_token` / `access_token`）与你自己创建的脚本令牌。**\n"
+     ">\n"
+     "> 凭据由你在本机自行维护并填入表格 B1 单元格；云端定时签到与失败自愈会自动续期并回写。\n"
+     ">\n"
+     "> **风险**：凭据等价于你的登录态，泄露即等于账号被接管；自动化调用可能与相关服务条款冲突。\n"
+     ">\n"
+     "> **请在动手前完整阅读 [`SECURITY.md`](SECURITY.md)**（含逐项风险、缓解措施与免责声明）。\n"
+     ">\n"
+     "> 📌 **本发布包不包含任何从其他应用进程内存中提取或解密登录凭据的能力**；\n"
+     "> 请仅在你自己的账号与受信任的个人设备上使用。"),
+    # ── README.en.md 顶部英文告示 ──
+    ("> **This project contains a highly sensitive capability: extracting and decrypting another\n"
+     "> application's login credentials from its running process memory** (the WorkBuddy desktop client).\n"
+     ">\n"
+     "> What it does: reads WorkBuddy process memory → locates the key material → decrypts the\n"
+     "> login-state envelope → obtains `accessToken` / `refreshToken` / `idToken` → uses them to\n"
+     "> sign in and renew tokens automatically.\n"
+     ">\n"
+     "> **Risks**: reading another app's process memory is a privileged operation; the extracted\n"
+     "> credentials are equivalent to your session, so any leak means account takeover; the usage\n"
+     "> may also conflict with the applicable terms of service.\n"
+     ">\n"
+     "> **Read [`SECURITY.md`](SECURITY.md) in full before running anything** — it lists every risk,\n"
+     "> the mitigations in place, the difference between the published and full builds, and the\n"
+     "> disclaimer.\n"
+     ">\n"
+     "> 📌 **The published build on the WorkBuddy platform does NOT include this capability**\n"
+     "> (cloud check-in and self-healing only). The full build exists solely in this GitHub\n"
+     "> repository — **use it only with your own account, on a personal device you trust**.",
+     "> **This skill uses your own login credentials (`refresh_token` / `access_token`) and the\n"
+     "> script token you create.**\n"
+     ">\n"
+     "> You maintain the credentials on your own machine and put them in cell B1; the cloud\n"
+     "> check-in and the self-healing guard renew and rewrite them automatically.\n"
+     ">\n"
+     "> **Risks**: these credentials are equivalent to your session, so any leak means account\n"
+     "> takeover; automated calls may also conflict with the applicable terms of service.\n"
+     ">\n"
+     "> **Read [`SECURITY.md`](SECURITY.md) in full before running anything** — it lists every risk,\n"
+     "> the mitigations in place, and the disclaimer.\n"
+     ">\n"
+     "> 📌 **This published build does NOT include any capability to extract or decrypt login\n"
+     "> credentials from another application's process memory** — use it only with your own\n"
+     "> account, on a personal device you trust."),
+    # ── SKILL.md 安全红线能力声明 ──
+    ("> ⚠️ **能力风险声明（必读）**：本 Skill 完整版包含「从另一应用（WorkBuddy 客户端）进程内存中\n"
+     "> 提取并解密其登录凭据」的高敏感能力 —— 读进程内存 → 取密钥材料 → 解密登录态信封 →\n"
+     "> 得 `accessToken`/`refreshToken`/`idToken`。凭据泄露即等于账号被接管；使用方式可能与相关\n"
+     "> 服务条款冲突。请仅在用户**自有账号**与**受信任的个人设备**上使用。\n"
+     "> 完整风险、缓解措施与免责声明见 `SECURITY.md`；平台发布版**不含**该能力。\n"
+     "> 执行本 Skill 前若用户未确认知悉上述风险，**必须先明确告知**。",
+     "> ⚠️ **能力风险声明（必读）**：本 Skill 使用用户的登录凭据（`refresh_token` / `access_token`）\n"
+     "> 与用户自行创建的脚本令牌。凭据泄露即等于账号被接管；自动化调用可能与相关服务条款冲突。\n"
+     "> 请仅在用户**自有账号**与**受信任的个人设备**上使用。\n"
+     "> 完整风险、缓解措施与免责声明见 `SECURITY.md`。\n"
+     "> 执行本 Skill 前若用户未确认知悉上述风险，**必须先明确告知**。"),
+]
+
+# ── 3c. 逐行替换之后的后处理修正 ────────────────────────────────
+# 逐行规则会把「进程内存」→「本机」，若块级替换刚写入含该词的整句，会被改坏成
+# 「从其他应用本机中提取」。这里在逐行替换完成后把整句改回正确表述。
+DOC_POST_FIX = [
+    ("本发布包不包含任何从其他应用本机中提取或解密登录凭据的能力",
+     "本发布包不包含任何从其他应用进程内存中提取或解密登录凭据的能力"),
+    ("本发布包不包含任何从其他应用本机中提取或解密登录凭据的能力**",
+     "本发布包不包含任何从其他应用进程内存中提取或解密登录凭据的能力**"),
+]
+
 # 删除已移除文件在 .md 中的整行引用（目录树、说明行等）
 STRIP_FILENAMES = ["wb_checkin.py", "decrypt_envelope.js", "api-spec.md"]
 
@@ -185,6 +354,13 @@ def build(out_zip):
             os.remove(p)
             print("  [删] %s" % f)
 
+    # 用发布版安全声明替换仓库完整版 SECURITY.md
+    sec = os.path.join(TMP, "SECURITY.md")
+    if os.path.exists(sec):
+        with open(sec, "w", encoding="utf-8", newline="") as fh:
+            fh.write(PUBLISH_SECURITY_MD)
+        print("  [改] SECURITY.md -> 发布版安全声明")
+
     # 代码精确改写
     for rel, patches in CODE_PATCHES.items():
         p = os.path.join(TMP, rel)
@@ -207,7 +383,16 @@ def build(out_zip):
         for fn in files:
             if fn.endswith(".md") or fn == "SKILL.md":
                 p = os.path.join(root, fn)
-                lines = open(p, encoding="utf-8").read().split("\n")
+                text = open(p, encoding="utf-8").read()
+
+                # (1) 块级替换（多行整段）—— 必须先做，避免被逐行规则拆散
+                for k, v in DOC_BLOCK_REPL:
+                    if k in text:
+                        text = text.replace(k, v)
+                        print("  [脱] 块级替换: %s" % fn)
+
+                # (2) 逐行替换 + 删除已移除文件的引用行
+                lines = text.split("\n")
                 new_lines = []
                 for line in lines:
                     if any(name in line for name in STRIP_FILENAMES):
@@ -217,7 +402,14 @@ def build(out_zip):
                         if k in line:
                             line = line.replace(k, v)
                     new_lines.append(line)
-                open(p, "w", encoding="utf-8", newline="").write("\n".join(new_lines))
+                text = "\n".join(new_lines)
+
+                # (3) 逐行之后的后处理修正
+                for k, v in DOC_POST_FIX:
+                    if k in text:
+                        text = text.replace(k, v)
+
+                open(p, "w", encoding="utf-8", newline="").write(text)
 
     # 模板 .js 脱敏（如云端版 AirScript 注释里的 atRestSecretKey）
     JS_REPL = [("atRestSecretKey", "本地密钥")]

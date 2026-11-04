@@ -7,6 +7,27 @@
 
 [简体中文](README.md)
 
+## ⚠️ Security notice — read this first
+
+> **This project contains a highly sensitive capability: extracting and decrypting another
+> application's login credentials from its running process memory** (the WorkBuddy desktop client).
+>
+> What it does: reads WorkBuddy process memory → locates the key material → decrypts the
+> login-state envelope → obtains `accessToken` / `refreshToken` / `idToken` → uses them to
+> sign in and renew tokens automatically.
+>
+> **Risks**: reading another app's process memory is a privileged operation; the extracted
+> credentials are equivalent to your session, so any leak means account takeover; the usage
+> may also conflict with the applicable terms of service.
+>
+> **Read [`SECURITY.md`](SECURITY.md) in full before running anything** — it lists every risk,
+> the mitigations in place, the difference between the published and full builds, and the
+> disclaimer.
+>
+> 📌 **The published build on the WorkBuddy platform does NOT include this capability**
+> (cloud check-in and self-healing only). The full build exists solely in this GitHub
+> repository — **use it only with your own account, on a personal device you trust**.
+
 ## ☁️ Cloud Check-in with Self-Healing (the core capability)
 
 This is what separates this skill from an ordinary check-in script: it is **not** a
@@ -159,10 +180,20 @@ See `references/troubleshooting.md`. Highlights:
 
 ## Security Notes
 
+The full build contains the credential-extraction and decryption capability; see
+[`SECURITY.md`](SECURITY.md) for the complete risk breakdown, mitigations and disclaimer.
+Key points:
+
+- ⚠️ **This project extracts and decrypts another application's login credentials**
+  (reads WorkBuddy process memory → obtains the key → decrypts the login-state envelope →
+  yields `accessToken` / `refreshToken` / `idToken`). A leaked credential equals a taken-over
+  account — use it only with your own account, on a device you trust.
 - Decryption happens entirely on your machine. Keys and tokens are never uploaded
   (except to the check-in/refresh endpoints themselves — that's inherent to the feature).
 - The token sits in plain text in cell B1 — **set the sheet's permission to "only me"**.
 - Runtime artifacts live in `scripts/out/` and `scripts/plan.json`; both are excluded by `.gitignore`.
+- The published build on the WorkBuddy platform does **not** include the credential-extraction
+  capability — it keeps cloud check-in and self-healing only.
 
 ## Project Layout
 

@@ -13,7 +13,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed — grab a fresh token and re-run it automatically"
   - "Show my current check-in streak and total credits"
-version: "2.0.1"
+version: "2.0.2"
 author: sprite
 agent_created: true
 ---
@@ -354,6 +354,13 @@ AAD = "WB-AAD\0" + 0x01 + lenPrefixed("WBEV1") + lenPrefixed("sym-v1")
 ---
 
 ## 安全红线
+
+> ⚠️ **能力风险声明（必读）**：本 Skill 完整版包含「从另一应用（WorkBuddy 客户端）进程内存中
+> 提取并解密其登录凭据」的高敏感能力 —— 读进程内存 → 取密钥材料 → 解密登录态信封 →
+> 得 `accessToken`/`refreshToken`/`idToken`。凭据泄露即等于账号被接管；使用方式可能与相关
+> 服务条款冲突。请仅在用户**自有账号**与**受信任的个人设备**上使用。
+> 完整风险、缓解措施与免责声明见 `SECURITY.md`；平台发布版**不含**该能力。
+> 执行本 Skill 前若用户未确认知悉上述风险，**必须先明确告知**。
 
 - 绝不打印令牌明文到对话；只报**路径、字符数、前 10 字符**；
 - 令牌文件落在 `scripts/out/`，`kdocs_config.json` 含 AirScript-Token —— 都别分享、别提交仓库；

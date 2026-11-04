@@ -1,5 +1,24 @@
 # NOTICE
 
+## Security notice — sensitive capability
+
+**This project extracts and decrypts another application's login credentials.**
+
+Specifically, to sign in automatically without restarting the client, it reads the
+running WorkBuddy desktop client process memory, locates the key material,
+decrypts the login-state envelope, and obtains `accessToken` / `refreshToken` /
+`idToken`. Extracted credentials are equivalent to your session — a leak means
+account takeover. Reading another application's process memory may also conflict
+with that application's terms of service.
+
+**Read [`SECURITY.md`](SECURITY.md) before use.** Use only with your own account,
+on a personal device you trust.
+
+The build published on the WorkBuddy platform does **not** contain this capability;
+it provides cloud check-in and self-healing only.
+
+## Reverse engineering
+
 This project automates the WorkBuddy "Buddy Station" daily check-in.
 The API surface was reverse-engineered from the WorkBuddy desktop client and
 is not officially documented — endpoints, headers and error codes may change
@@ -9,4 +28,10 @@ You are responsible for:
   - complying with the terms of service of the services you automate;
   - keeping your own credentials (AirScript-Token, refresh tokens) private —
     the repository ships empty templates, never commit real values;
-  - setting appropriate permissions on any sheet that stores a token.
+  - setting appropriate permissions on any sheet that stores a token;
+  - accepting the risks listed in `SECURITY.md`, including the risk that
+    credentials extracted from process memory are compromised.
+
+Provided "as is", without warranty of any kind. The authors are not liable for
+account compromise, data loss, terms-of-service violations, or any third-party
+damage arising from use of this project.
