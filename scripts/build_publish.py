@@ -152,9 +152,9 @@ NEW_SECTION5 = '''    # ---- 5. summary ----
     say()
     say("   RESULT: environment check done.")
     say("   Cloud check-in (works while PC is off) is the recommended path -")
-    say("   see README.md section 4 for the one-time Kingsoft Docs setup.")
-    say("   (This published build excludes the local in-process token")
-    say("    extraction for platform security; use the full local skill for that.)")
+    say("   see README.md > Quick Start for the one-time Kingsoft Docs setup.")
+    say("   (This published build does not include local token retrieval;")
+    say("    use the full local skill for that.)")
     say()'''
 
 CODE_PATCHES = {
@@ -170,11 +170,29 @@ CODE_PATCHES = {
          "       b. 提示用户把新令牌写入表格 B1"),
         (re.compile(r"def do_heal\(.*?(?=\n\ndef main)", re.DOTALL), CLEAN_DO_HEAL + "\n"),
     ],
+    "scripts/check_kdocs_ready.py": [
+        # --helper 参数被移除 → 调用处改传空列表（否则 AttributeError）
+        ("        ready, checks = judge(args.b1, args.b1_formula, args.b2, args.helper)",
+         "        ready, checks = judge(args.b1, args.b1_formula, args.b2, [])"),
+        # 发布版不使用 E 列分段区（split_token 已剔除），第 4 项检查是恒真空检查 → 移除
+        ("  4. E 列分段区已清空 —— 说明自愈逻辑已生效\n", ""),
+        ("    # 4. E 列分段区已清空\n"
+         "    leftover = [t for t in helper_texts if t and t.strip()]\n"
+         "    checks.append({\n"
+         "        \"name\": \"辅助列（E 列）已清空\",\n"
+         "        \"ok\": not leftover,\n"
+         "        \"detail\": \"已清空\" if not leftover\n"
+         "                  else (\"仍有 %d 个非空分段残留\" % len(leftover)),\n"
+         "    })\n", ""),
+        ('     另读 range = E1:E8 (确认分段区是否已清空)\n', ""),
+    ],
     "scripts/setup_check.py": [
         (re.compile(r"    # ---- 5\. live self-test ----.*?\n    say\(\)\n\n    text = ", re.DOTALL),
          NEW_SECTION5 + "\n    text = "),
         ('say("      [!] Cloud not configured yet - optional for local check-in.")',
          'say("      [!] Cloud not configured yet - required for cloud check-in.")'),
+        ('say("          auto self-healing): see README.md section 4.")',
+         'say("          auto self-healing): see README.md > Quick Start.")'),
         ('say("          The decryption key only lives in a RUNNING client.")',
          'say("          A fresh token must be obtained on a RUNNING client.")'),
         ("extraction for platform security; use the full local skill for that.)",
@@ -378,6 +396,29 @@ DOC_POST_FIX = [
      "| **失败自愈** | ✅ 提示更新令牌并重签 |"),
     ("云端签到失败时它会自动取新令牌、更新 B1、并远程立即重签。",
      "云端签到失败时它会提示你更新 B1 令牌、并远程立即重签。"),
+    # cloud_guard.py 注释里提到被剔除的文件名 → 一并中性化
+    ("# WB_CHECKIN removed in published build (process-memory token extraction excluded for platform security)",
+     "# local token helper removed in published build"),
+    ("# WB_CHECKIN removed in published build (local token retrieval excluded for platform security)",
+     "# local token helper removed in published build"),
+    # ── SKILL.md 架构图与关键约束：发布版守护程序无取令牌能力，图/文须同步 ──
+    ("                    │   → FAIL 才：取新令牌 → 写回 B1 → 远程重签 │",
+     "                    │   → FAIL 才：提示更新 B1 → 远程立即重签      │"),
+    ("**关键约束**：取密钥依赖本机客户端，**云端无法自行获取令牌**。所以：\n"
+     "- 常态（令牌有效）→ 云端全自动，令牌自我续期，本机不用管；\n"
+     "- 令牌彻底作废（账号登出 / 服务端作废）→ 需在本机取得新令牌后更新 B1，守护程序会提示你怎么做。",
+     "**关键约束**：云端无法自行获取新令牌。所以：\n"
+     "- 常态（令牌有效）→ 云端全自动，令牌自我续期，本机不用管；\n"
+     "- 令牌彻底作废（账号登出 / 服务端作废）→ 需在本机取得新令牌后更新 B1，守护程序会提示你怎么做。"),
+    # 架构图标题编号：〇 在发布版里已无 0 号框架
+    ("## 〇、整体架构", "## 整体架构"),
+    # ── SKILL.md 章节编号断层（剥掉「一、本机签到」与「五、写入金山文档表格」后，
+    #    二~七 不连续）→ 发布版重新连续编号 ──
+    ("## 二、云端部署（电脑关机也能签到）", "## 一、云端部署（电脑关机也能签到）"),
+    ("## 三、云端调用与自愈守护", "## 二、云端调用与自愈守护"),
+    ("## 四、每日自愈调度", "## 三、每日自愈调度"),
+    ("## 六、部署后核验", "## 四、部署后核验"),
+    ("## 七、为什么不用 auto_sheet 自动化流程（重要结论）", "## 五、为什么不用 auto_sheet 自动化流程（重要结论）"),
     # ── 已剔除文件的引用（split_token.py / 本机版 AirScript）──
     ("> 本机版备用模板见 `@templates/workbuddy-checkin.airscript.js`。\n", ""),
     ("│   └── workbuddy-checkin.airscript.js        # local variant (fallback)\n", ""),
@@ -793,6 +834,34 @@ RESIDUAL_ALLOW = [
 # 删除已移除文件在 .md 中的整行引用（目录树、说明行等）
 STRIP_FILENAMES = ["wb_checkin.py", "decrypt_envelope.js", "api-spec.md"]
 
+# ── 3j. .py 文件的行级删除（发布版不需要的检查项 / 提及）──────────
+# 踩坑：CODE_PATCHES 用多行字符串匹配源码，遇到缩进/空行差异常常不命中。
+# 对「整段删掉」的诉求，用「按行过滤」最稳。
+PY_LINE_DROP = {
+    "scripts/check_kdocs_ready.py": [
+        # 发布版不使用 E 列分段区 → 文档头说明、该检查项、读取提示全部删掉
+        "  4. E 列分段区已清空",
+        "    # 4. E 列分段区已清空",
+        "    leftover = [t for t in helper_texts if t and t.strip()]",
+        '        "name": "辅助列（E 列）已清空",',
+        '        "ok": not leftover,',
+        '        "detail": "已清空" if not leftover',
+        '                  else ("仍有 %d 个非空分段残留" % len(leftover)),',
+        # 读取提示与 --helper 参数（发布版无 E 列分段区）
+        "    print(\"     另读 range = E1:E8 (确认分段区是否已清空)\")",
+        "    ap.add_argument(\"--helper\", nargs=\"*\", default=[], help=\"辅助列各格的值\")",
+        # --helper 被删 → 调用处同步改为空列表（否则 AttributeError）
+        # 注意：这一条必须由 CODE_PATCHES 的替换规则处理，不能进 drop 列表
+        # （drop 与 replace 在同一列表内按序执行，replace 会被 drop 抢先）
+        "    print(\"         --b2 '<B2值>' --helper '<E1>' '<E2>' ... --export-json\")",
+    ],
+    "scripts/cloud_guard.py": [
+        # 注释里提到被剔除的脚本名 → 中性化
+        "# WB_CHECKIN removed in published build (process-memory token extraction excluded for platform security)",
+        "# WB_CHECKIN removed in published build (local token retrieval excluded for platform security)",
+    ],
+}
+
 # ── 4. 残余敏感令牌（必须归零）───────────────────────────────────
 HARD_TOKENS = [
     "ReadProcessMemory", "OpenProcess", "VirtualQueryEx",
@@ -913,6 +982,21 @@ def build(out_zip):
                 print("  [脱] 整行中性(.py): %s" % rel)
         open(p, "w", encoding="utf-8", newline="").write(t)
         print("  [改] %s" % rel)
+
+    # .py 行级删除（发布版不需要的检查项 / 提及）
+    for rel, drops in PY_LINE_DROP.items():
+        p = os.path.join(TMP, rel)
+        if not os.path.exists(p):
+            continue
+        lines = open(p, encoding="utf-8").read().split("\n")
+        kept = []
+        for line in lines:
+            s = line.strip()
+            if any(s.startswith(d.strip()) for d in drops):
+                print("  [删行] %s : %s" % (rel, s[:70]))
+                continue
+            kept.append(line)
+        open(p, "w", encoding="utf-8", newline="").write("\n".join(kept))
 
     # 文档脱敏
     for root, _, files in os.walk(TMP):
