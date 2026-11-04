@@ -1,5 +1,5 @@
 ---
-name: workbuddy-checkin
+name: sprite-workbuddy-checkin
 display_name: WorkBuddy 云端签到自愈守护
 display_name_en: WorkBuddy Cloud Check-in Self-Healing Guardian
 description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败才自动取新令牌、更新部署并立即重签。Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询一键完成。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。

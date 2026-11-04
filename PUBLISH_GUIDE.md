@@ -13,7 +13,7 @@
 | **A. 开放平台** | `open.workbuddy.cn` | 腾讯官方，全网可见，**约 7 个工作日**审核 | 正式发布、长期维护 |
 | **B. SkillHub** | `skillhub.cn` | 腾讯 SkillHub 市场，审核较快 | 快速上架、试水 |
 
-> 本机安装无需审核：直接把 `workbuddy-checkin/` 放进 `~/.workbuddy/skills/` 即可，已在你机器上生效。
+> 本机安装无需审核：直接把 `sprite-workbuddy-checkin/` 放进 `~/.workbuddy/skills/` 即可，已在你机器上生效。
 
 ---
 
@@ -21,14 +21,14 @@
 
 | 项 | 值 | 状态 |
 |---|---|---|
-| 技能包 | `C:\Users\Administrator\Downloads\workbuddy-checkin.zip` | ✅ 59.9 KB（限 3MB） |
-| 顶层目录 | `workbuddy-checkin/` | ✅ 与 SKILL.md 的 `name` 一致 |
+| 技能包 | `C:\Users\Administrator\Downloads\sprite-workbuddy-checkin.zip` | ✅ 59.9 KB（限 3MB） |
+| 顶层目录 | `sprite-workbuddy-checkin/` | ✅ 与 SKILL.md 的 `name` 一致 |
 | 文件数 | 17 | ✅ |
 | 图标 | 512×512 PNG，≤500 KB | 见下方「图标」一节 |
 | 名称（中文） | `WorkBuddy 每日签到助手` | 建议 |
 | 名称（英文） | `WorkBuddy Daily Check-in` | 建议 |
 | 版本 | `2.0.0` | 与 SKILL.md 一致 |
-| Slug | `workbuddy-checkin` | 小写 + 短横线 |
+| Slug | `sprite-workbuddy-checkin` | 小写 + 短横线 |
 
 ---
 
@@ -46,7 +46,7 @@
 | 表单项 | 填写内容 |
 |---|---|
 | 类型 | 技能 |
-| 上传压缩包 | 拖入 `workbuddy-checkin.zip`（≤3MB，仅 .zip） |
+| 上传压缩包 | 拖入 `sprite-workbuddy-checkin.zip`（≤3MB，仅 .zip） |
 | 展示名称 | `WorkBuddy 每日签到助手` |
 | 版本 | `2.0.0` |
 | 头像 | 512×512 PNG，≤500KB（**独立上传项**，平台不从 zip 里读） |
@@ -84,7 +84,7 @@
 
 1. 打开 `skillhub.cn` → 登录 → 右上角「**发布团队 skill**」
 2. 选择发布类型（免费版）
-3. 上传 `workbuddy-checkin.zip`，填基本信息
+3. 上传 `sprite-workbuddy-checkin.zip`，填基本信息
 4. 提交审核 → 平台安全检测通过后自动上架
 
 > 也有 CLI 方式（适合经常迭代）：

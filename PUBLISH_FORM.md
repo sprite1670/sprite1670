@@ -1,6 +1,6 @@
 # WorkBuddy 开放平台 · 上架表单文案（直接复制）
 
-> 配合 `workbuddy-checkin.zip` 与 `icon_512.png` 使用。
+> 配合 `sprite-workbuddy-checkin.zip` 与 `icon_512.png` 使用。
 > 平台：https://open.workbuddy.cn → 发布管理 → 技能 → 创建
 
 ---
@@ -9,8 +9,8 @@
 
 | 项 | 值 |
 |---|---|
-| 文件 | `workbuddy-checkin.zip`（20 文件，约 64 KB，≤3MB ✓） |
-| 顶层目录 | `workbuddy-checkin/`（与 SKILL.md 的 `name` 一致 ✓） |
+| 文件 | `sprite-workbuddy-checkin.zip`（20 文件，约 64 KB，≤3MB ✓） |
+| 顶层目录 | `sprite-workbuddy-checkin/`（与 SKILL.md 的 `name` 一致 ✓） |
 
 ## ② 展示信息
 
@@ -155,7 +155,7 @@ feature. Cell B1 holds a plaintext token — set the sheet to "only me".
 3. 左侧「**发布管理**」→「**技能**」→ 右上角「**创建**」
 4. **第 1 步 配置技能**
    - 类型：技能
-   - 上传压缩包：拖入 `workbuddy-checkin.zip`
+   - 上传压缩包：拖入 `sprite-workbuddy-checkin.zip`
    - 展示名称 / 版本 / 头像 / 市场分类 / 服务类目：按上面表格填
    - 点「继续」
 5. **第 2 步 确认信息**
@@ -176,7 +176,7 @@ feature. Cell B1 holds a plaintext token — set the sheet to "only me".
 ## ⑦ 发布前自检
 
 - [x] 包内每个 .md 都有 YAML frontmatter（name + description）
-- [x] 顶层目录 `workbuddy-checkin/` 与 `name` 一致
+- [x] 顶层目录 `sprite-workbuddy-checkin/` 与 `name` 一致
 - [x] 目录名与 SKILL.md 的 name 字段一致
 - [x] 包内无令牌 / 凭据 / 实例 ID（逐文件 grep 复检）
 - [x] 包内无 `scripts/out/`、`plan.json`、`deploy/` 等运行时产物
