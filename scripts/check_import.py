@@ -82,7 +82,7 @@ def extract_if_zip(path):
     """zip -> 临时解压目录，返回技能根目录。"""
     import tempfile
 
-    if not zipfile.isfile(path):
+    if not os.path.isfile(path):
         return path, None
     if not zipfile.is_zipfile(path):
         return path, None
