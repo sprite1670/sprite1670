@@ -1,0 +1,9 @@
+{
+  "_说明": "首次使用请复制本文件为 kdocs_config.json 并填入自己的凭据；也可用环境变量 KDOCS_FILE_ID / KDOCS_SCRIPT_ID / KDOCS_TOKEN 覆盖",
+  "file_id": "",
+  "script_id": "",
+  "token": "",
+  "table_url": "",
+  "worksheet_id": 0,
+  "sheet_name": ""
+}

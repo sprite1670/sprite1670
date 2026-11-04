@@ -29,7 +29,10 @@ import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# 真实凭据文件（用户自建，永不提交 git/发布包）
 CONFIG = os.path.join(HERE, "kdocs_config.json")
+# 空白模板（随发布包分发，供用户复制改名）
+CONFIG_EXAMPLE = os.path.join(HERE, "kdocs_config.example.json")
 
 BASE = "https://www.kdocs.cn/api/v3/ide/file"
 
@@ -41,9 +44,11 @@ def load_config():
         "script_id": os.environ.get("KDOCS_SCRIPT_ID", ""),
         "token": os.environ.get("KDOCS_TOKEN", ""),
     }
-    if os.path.exists(CONFIG):
+    for path in (CONFIG, CONFIG_EXAMPLE):
+        if not os.path.exists(path):
+            continue
         try:
-            with open(CONFIG, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             for k in cfg:
                 if not cfg[k]:

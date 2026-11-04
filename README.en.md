@@ -76,7 +76,7 @@ Adds a cloud-hosted layer on top of Path A. **One-time setup, then hands-off.**
    scheduler needs.
 2. **Paste the script**
    "Efficiency -> Advanced development -> **AirScript script editor**" -> New ->
-   paste all of `assets/workbuddy-checkin-cloud.airscript.js` -> **Ctrl+S** (save it
+   paste all of `templates/workbuddy-checkin-cloud.airscript.js` -> **Ctrl+S** (save it
    under **Document Shared Scripts**).
 3. **Grant network access**
    Editor toolbar -> **Services** -> **Add service** -> tick **Web API** -> OK.
@@ -89,7 +89,11 @@ Adds a cloud-hosted layer on top of Path A. **One-time setup, then hands-off.**
    Toolbar -> **Script Token (beta)** (shield icon) -> tick "I understand" -> Create -> copy.
    *(Requires real-name verification; one token per account; 180 days by default.)*
 6. **Fill in the credentials**
-   Put three values into `scripts/kdocs_config.json`:
+   Copy the blank template first (it contains no real credentials, safe to keep):
+   ```bash
+   cp scripts/kdocs_config.example.json scripts/kdocs_config.json
+   ```
+   Then put three values into `scripts/kdocs_config.json`:
    - `token` = the token you copied in step 5
    - `file_id` / `script_id` = in the editor's left script list click
      **More -> Copy script webhook**. The link looks like
@@ -103,6 +107,15 @@ Adds a cloud-hosted layer on top of Path A. **One-time setup, then hands-off.**
 > `python3 scripts/setup_cloud.py --url <your-sheet-url>`.
 
 ## Configuration
+
+The repo ships only a **blank template** `scripts/kdocs_config.example.json`
+(no real credentials). Copy it to `scripts/kdocs_config.json` and fill in your
+own values - that file holds the AirScript-Token, is listed in `.gitignore`,
+and therefore never gets committed or included in the release package:
+
+```bash
+cp scripts/kdocs_config.example.json scripts/kdocs_config.json
+```
 
 `scripts/kdocs_config.json`:
 
@@ -159,7 +172,7 @@ workbuddy-checkin/
 ├── README.md                             # this file (Chinese)
 ├── README.en.md                          # English version
 ├── .gitignore                            # excludes credentials & runtime artifacts
-├── assets/
+├── templates/
 │   ├── workbuddy-checkin-cloud.airscript.js  # cloud AirScript (recommended)
 │   └── workbuddy-checkin.airscript.js        # local variant (fallback)
 ├── references/
@@ -175,7 +188,7 @@ workbuddy-checkin/
     ├── split_token.py                    # token chunking (dodges content filters)
     ├── setup_cloud.py                    # deployment wizard
     ├── check_kdocs_ready.py              # post-deployment verification
-    └── kdocs_config.json                 # credentials (empty template)
+    └── kdocs_config.example.json         # blank credential template (copy to kdocs_config.json)
 ```
 
 ## How It Works

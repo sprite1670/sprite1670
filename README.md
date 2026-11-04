@@ -69,7 +69,7 @@ python3 scripts/wb_checkin.py auto
    ⚠️ 必须用智能表格，**普通表格（.xlsx）拿不到「脚本令牌」**，而令牌是云端调度的关键。
 2. **粘贴脚本**
    「效率 → 高级开发 → **AirScript 脚本编辑器**」→ 新建 → 粘贴
-   `assets/workbuddy-checkin-cloud.airscript.js` 全文 → **Ctrl+S 保存**（存到【文档共享脚本】）。
+   `templates/workbuddy-checkin-cloud.airscript.js` 全文 → **Ctrl+S 保存**（存到【文档共享脚本】）。
 3. **开通网络权限**
    编辑器工具栏「**服务**」→「添加服务」→ 勾选「**网络API**」→ 确定。
    *（不加这个，脚本发不出请求，会静默失败。）*
@@ -80,7 +80,11 @@ python3 scripts/wb_checkin.py auto
    编辑器工具栏的「**脚本令牌(beta)**」（盾牌图标）→ 勾选「我已知晓」→ 创建 → 复制。
    *（需完成实名认证；每个用户仅一个，默认 180 天可延期。）*
 6. **填凭据**
-   把三个值填进 `scripts/kdocs_config.json`：
+   先复制空白模板再填值（模板本身不含任何真实凭据，可安全存放）：
+   ```bash
+   cp scripts/kdocs_config.example.json scripts/kdocs_config.json
+   ```
+   然后把三个值填进 `scripts/kdocs_config.json`：
    - `token` = 第 5 步复制的令牌
    - `file_id` / `script_id` = 左侧脚本栏「更多」→「复制脚本 webhook」，链接形如
      `https://www.kdocs.cn/api/v3/ide/file/<file_id>/script/<script_id>/sync_task`，
@@ -93,6 +97,14 @@ python3 scripts/wb_checkin.py auto
 > 会生成一份带你自己表格地址的部署清单。
 
 ## 配置文件
+
+仓库只提供**空白模板** `scripts/kdocs_config.example.json`（不含任何真实凭据）。
+复制成 `scripts/kdocs_config.json` 后填入自己的值 —— 该文件含 AirScript-Token，
+已被 `.gitignore` 排除，**不会被提交、不会进入发布包**：
+
+```bash
+cp scripts/kdocs_config.example.json scripts/kdocs_config.json
+```
 
 `scripts/kdocs_config.json`：
 
@@ -145,8 +157,11 @@ python3 scripts/wb_checkin.py auto
 workbuddy-checkin/
 ├── SKILL.md                              # Agent 执行说明
 ├── README.md                             # 本文件（面向人）
+├── README.en.md                          # English version
+├── icon_512.png                          # 上架头像（512×512）
+├── LICENSE / NOTICE                      # MIT 许可与使用须知
 ├── .gitignore                            # 排除凭据与运行时产物
-├── assets/
+├── templates/
 │   ├── workbuddy-checkin-cloud.airscript.js  # 云端版 AirScript（推荐）
 │   └── workbuddy-checkin.airscript.js        # 本机版（备用）
 ├── references/
@@ -162,7 +177,8 @@ workbuddy-checkin/
     ├── split_token.py                    # 令牌分段（规避敏感审批）
     ├── setup_cloud.py                    # 部署向导
     ├── check_kdocs_ready.py              # 部署就绪核验
-    └── kdocs_config.json                 # 凭据（空白模板）
+    ├── check_import.py                   # 上架前自检（按官方规范逐项体检）
+    └── kdocs_config.example.json         # 凭据空白模板（复制为 kdocs_config.json 后填写）
 ```
 
 ## 致谢

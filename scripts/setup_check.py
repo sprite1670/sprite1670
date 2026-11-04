@@ -84,6 +84,7 @@ def main():
     # ---- 4. cloud config ----
     say("[4/5] Checking cloud config ...")
     cfg_path = os.path.join(HERE, "kdocs_config.json")
+    example_path = os.path.join(HERE, "kdocs_config.example.json")
     configured = False
     missing = []
     if os.path.exists(cfg_path):
@@ -95,6 +96,8 @@ def main():
             configured = not missing
         except Exception:
             missing = ["<unreadable>"]
+    elif os.path.exists(example_path):
+        missing = ["<config file missing: copy kdocs_config.example.json -> kdocs_config.json>"]
     else:
         missing = ["<config file missing>"]
 

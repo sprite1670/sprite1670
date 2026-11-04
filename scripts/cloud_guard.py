@@ -38,6 +38,8 @@ WB_CHECKIN = os.path.join(HERE, "wb_checkin.py")
 CLOUD = os.path.join(HERE, "kdocs_cloud.py")
 SPLIT = os.path.join(HERE, "split_token.py")
 CONFIG = os.path.join(HERE, "kdocs_config.json")
+# 空白模板（随发布包分发）；用户自建的 kdocs_config.json 优先
+CONFIG_EXAMPLE = os.path.join(HERE, "kdocs_config.example.json")
 
 
 def sh(cmd, **kw):
@@ -52,10 +54,14 @@ def sh(cmd, **kw):
 
 def load_cfg():
     cfg = {}
-    if os.path.exists(CONFIG):
+    # 用户自建的真实配置优先；没有则回退空白模板
+    for path in (CONFIG, CONFIG_EXAMPLE):
+        if not os.path.exists(path):
+            continue
         try:
-            with open(CONFIG, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 cfg = json.load(f)
+            break
         except Exception:
             cfg = {}
     for k in ("file_id", "script_id", "token"):

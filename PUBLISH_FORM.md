@@ -1,6 +1,6 @@
 # WorkBuddy 开放平台 · 上架表单文案（直接复制）
 
-> 配合 `workbuddy-checkin.zip` 与 `assets/icon_512.png` 使用。
+> 配合 `workbuddy-checkin.zip` 与 `icon_512.png` 使用。
 > 平台：https://open.workbuddy.cn → 发布管理 → 技能 → 创建
 
 ---
@@ -30,7 +30,7 @@ WorkBuddy Cloud Check-in with Self-Healing
 ```
 
 ### 头像
-`assets/icon_512.png` —— 512×512 PNG，139.7 KB（≤500KB ✓）
+`icon_512.png` —— 512×512 PNG，139.7 KB（≤500KB ✓）
 （平台表单**独立上传**图标，不会从 zip 里读）
 
 ### 市场展示分类

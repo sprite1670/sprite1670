@@ -33,14 +33,11 @@ sanity sweep below before committing.
 # 1. remove runtime artifacts (they contain plaintext tokens)
 rm -rf scripts/out scripts/plan.json scripts/deploy
 
-# 2. reset credentials to the empty template
-cat > scripts/kdocs_config.json <<'JSON'
-{
-  "_说明": "首次使用请填入自己的凭据；也可用环境变量 KDOCS_FILE_ID / KDOCS_SCRIPT_ID / KDOCS_TOKEN 覆盖",
-  "file_id": "", "script_id": "", "token": "", "table_url": "",
-  "worksheet_id": 0, "sheet_name": ""
-}
-JSON
+# 2. credentials are NOT tracked by git anymore — the blank template is
+#    scripts/kdocs_config.example.json (committed); your real
+#    scripts/kdocs_config.json lives only in your working copy.
+#    If it exists, delete it before packing the release:
+rm -f scripts/kdocs_config.json
 
 # 3. scan for leaks — patterns only, never paste a real token here
 grep -rE "eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\." . && echo "LEAK: JWT"
@@ -49,7 +46,7 @@ grep -rE '"token"[[:space:]]*:[[:space:]]*"[A-Za-z0-9]{16,}"' . && echo "LEAK: t
 # 4. syntax + functional check
 for f in scripts/*.py; do python3 -c "import ast;ast.parse(open('$f',encoding='utf-8').read())"; done
 node --check scripts/decrypt_envelope.js
-node --check assets/workbuddy-checkin-cloud.airscript.js
+node --check templates/workbuddy-checkin-cloud.airscript.js
 python3 scripts/wb_checkin.py auto
 ```
 

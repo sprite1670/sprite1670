@@ -1,8 +1,21 @@
 ---
 name: workbuddy-checkin
-description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（08:00 由金山文档定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败才自动取新令牌、更新部署并立即重签。Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询一键完成。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
-agent_created: true
+display_name: WorkBuddy 云端签到自愈守护
+display_name_en: WorkBuddy Cloud Check-in Self-Healing Guardian
+description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败才自动取新令牌、更新部署并立即重签。Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询一键完成。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
+description_zh: WorkBuddy 云端签到自愈守护：电脑关机也能按时签到，签到失败自动修复。云端 AirScript 定时运行并自动续期令牌，自愈守护只在签到失败时才动手，全程无需人工干预。
+description_en: WorkBuddy Cloud Check-in Self-Healing Guardian keeps your daily Buddy Station check-in running even when the PC is off, and repairs failures automatically. A cloud AirScript runs on schedule and renews its own token, while the local guardian only steps in when a check-in actually fails.
+examples_zh:
+  - "帮我把 WorkBuddy 签到部署到金山文档，电脑关机也能每天自动签"
+  - "签到失败了，帮我自动取新令牌并重签一次"
+  - "查一下我的连签天数和累计积分"
+examples_en:
+  - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
+  - "Check-in failed — grab a fresh token and re-run it automatically"
+  - "Show my current check-in streak and total credits"
 version: "2.0.0"
+author: sprite
+agent_created: true
 ---
 
 # WorkBuddy 云端签到自愈守护（内存取密钥 · 云端定时 · 失败自愈 · 零依赖）
@@ -21,8 +34,14 @@ WorkBuddy 签到本质是一次带鉴权凭据的 HTTP 请求，不需要模拟 
 凭据统一放 `scripts/kdocs_config.json`（含 file_id / script_id / token / table_url / worksheet_id / sheet_name），
 或用环境变量 `KDOCS_FILE_ID` / `KDOCS_SCRIPT_ID` / `KDOCS_TOKEN` 覆盖。
 
+首次使用先复制空白模板（模板不含任何真实凭据）：
+```bash
+cp scripts/kdocs_config.example.json scripts/kdocs_config.json
+```
+
 ⚠️ **该文件含 AirScript-Token（等同于文档读写钥匙），切勿提交到任何仓库或分享给他人。**
-本仓库只提供空白模板，实际凭据由使用者自行填入。
+仓库只提供空白模板 `kdocs_config.example.json`；`kdocs_config.json` 已被 `.gitignore`
+排除，不会被提交、不会进入发布包。实际凭据由使用者自行填入。
 
 **云端方案的核心**：AirScript 跑在金山文档的云端 JS 引擎上，由金山文档的**定时任务**触发，
 所以电脑关机、客户端没开都照样签到。AirScript 每次刷新成功都会把新令牌写回 B1，
@@ -108,7 +127,7 @@ python3 scripts/setup_cloud.py --url https://www.kdocs.cn/l/你的表格ID
 产出 `scripts/deploy/cloud/`：
 - `workbuddy-checkin-cloud.airscript.js` —— 粘贴到 AirScript 编辑器
 - `DEPLOY.md` —— 六步图文指引
-- `kdocs_config.json` —— 凭据模板
+- `kdocs_config.example.json` —— 凭据空白模板（复制为 `kdocs_config.json` 后填写）
 
 ### 手动六步（详见生成的 DEPLOY.md）
 
@@ -345,5 +364,7 @@ AAD = "WB-AAD\0" + 0x01 + lenPrefixed("WBEV1") + lenPrefixed("sym-v1")
 
 ## 参考资料
 
-- `references/api-spec.md` —— 接口地址、请求头、字段、错误码、AirScript 开放接口
-- `references/troubleshooting.md` —— 常见报错与排查路径
+> 面向用户的完整说明（部署步骤、命令速查、常见报错）见 `@references/api-spec.md`。
+> 报错排查路径与错误码对照见 `@references/troubleshooting.md`。
+> 云端 AirScript 模板见 `@templates/workbuddy-checkin-cloud.airscript.js`，
+> 本机版备用模板见 `@templates/workbuddy-checkin.airscript.js`。

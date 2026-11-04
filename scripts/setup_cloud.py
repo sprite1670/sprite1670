@@ -20,7 +20,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
-ASSET = os.path.join(SKILL, "assets", "workbuddy-checkin-cloud.airscript.js")
+ASSET = os.path.join(SKILL, "templates", "workbuddy-checkin-cloud.airscript.js")
 OUT = os.path.join(HERE, "deploy", "cloud")
 
 DEPLOY_MD = """# 云端签到部署（电脑关机也能签到）

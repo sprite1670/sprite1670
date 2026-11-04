@@ -39,7 +39,7 @@ WorkBuddy 客户端没运行，或进程名不是 WorkBuddy/CodeBuddy/Electron�
 
 ### B1 读出来是 `=E1&E2&E3` 而不是令牌
 `Range("B1").Text` 读公式单元格返回的是公式源串。两种解法：
-- 部署 `assets/workbuddy-checkin.airscript.js`（内置自愈：自动重建 + 固化 + 清 E 列）；
+- 部署 `templates/workbuddy-checkin.airscript.js`（内置自愈：自动重建 + 固化 + 清 E 列）；
 - 或手动把 `scripts/out/refreshToken.txt` 的内容粘贴覆盖到 B1（覆盖公式），再删掉 E 列。
 
 ### 校验公式 `=LEN(B1)` 不等于 1567
@@ -126,7 +126,7 @@ Git Bash 不支持 `nul`（那是 cmd 的设备名）。用 `>/dev/null 2>err.tx
 # 1. 语法
 python3 -c "import ast;ast.parse(open('scripts/wb_checkin.py',encoding='utf-8').read());print('PY OK')"
 node --check scripts/decrypt_envelope.js && echo "JS OK"
-node --check assets/workbuddy-checkin.airscript.js && echo "ASSET OK"
+node --check templates/workbuddy-checkin.airscript.js && echo "ASSET OK"
 
 # 2. 分段逻辑（拼接必须逐位一致）
 python3 -c "
