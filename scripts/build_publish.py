@@ -237,6 +237,30 @@ CODE_PATCHES = {
         # 用户 11-04 下午新增的「本地直接签到」功能注释 → 中性化
         ("# 云端脚本令牌失效时，本机 guard 已能从内存取到最新 accessToken，",
          "# 云端脚本令牌失效时，本机 guard 可取得最新 accessToken，"),
+        # main() 里的「本地直签模式」分支：发布版无本机取令牌能力，该分支恒不成立。
+        # 整段替换为「未配置 AirScript-Token」的提示 —— 结构/缩进不变，语法绝对安全。
+        ("        if not have_token://n"
+         "            # 本地直签模式（核心零触碰）：无快照、无 AirScript-Token 时，\n"
+         "            # 直接靠本机取令牌 + workbuddy.cn 直签保连签，无需任何云端读/写。\n"
+         "            saved_at = read_saved_at()\n"
+         "            if saved_at and local_status(saved_at):\n"
+         "                print(\"=== 本地状态 ===\")\n"
+         "                print(\"[来源] 本地直签模式 | 今日已签（本地查状态确认）\")\n"
+         "                print(\"\\n✅ 无需动作（今日本地已签到）\")\n"
+         "                save_state({\"status\": \"OK\", \"action\": \"skip_local\",\n"
+         "                            \"reason\": \"今日本地已签\", \"date\": today})\n"
+         "                return 0\n"
+         "            print(\"=== 本地状态 ===\")\n"
+         "            print(\"[来源] 本地直签模式（无快照/无 AirScript-Token）| 今日尚未确认，进入自愈\")\n"
+         "            status = \"UNKNOWN\"\n"
+         "            last_ok = \"\"\n"
+         "            last_result = \"\"\n",
+         "        if not have_token://n"
+         "            print(\"[来源] 未配置 AirScript-Token，无法查询云端状态。\")\n"
+         "            print(\"       请在 scripts/kdocs_config.json 填入脚本令牌后重试。\")\n"
+         "            status = \"UNKNOWN\"\n"
+         "            last_ok = \"\"\n"
+         "            last_result = \"\"\n"),
         ("       b. 把新令牌写回表格 B1（分段写入 + 公式拼接，规避敏感审批）",
          "       b. 提示用户把新令牌写入表格 B1"),
         (re.compile(r"def do_heal\(.*?(?=\n\ndef main)", re.DOTALL), CLEAN_DO_HEAL + "\n"),
@@ -256,6 +280,18 @@ CODE_PATCHES = {
          "                  else (\"仍有 %d 个非空分段残留\" % len(leftover)),\n"
          "    })\n", ""),
         ('     另读 range = E1:E8 (确认分段区是否已清空)\n', ""),
+    ],
+    # install.bat：注释里说会做「live check-in self-test」，
+    # 但发布版 setup_check.py 已无签到自测（仅环境体检 + 云端配置检查）→ 描述与实现必须一致
+    "scripts/install.bat": [
+        ("rem  Locates Python, then hands over to setup_check.py which does\n"
+         "rem  the environment check, cloud-config check and a live\n"
+         "rem  check-in self-test.",
+         "rem  Locates Python, then hands over to setup_check.py which does\n"
+         "rem  the environment check and the cloud-config check."),
+        ("rem  the environment check, cloud-config check and a live\n"
+         "rem  check-in self-test.",
+         "rem  the environment check and the cloud-config check."),
     ],
     "scripts/setup_check.py": [
         (re.compile(r"    # ---- 5\. live self-test ----.*?\n    say\(\)\n\n    text = ", re.DOTALL),
@@ -512,6 +548,16 @@ DOC_POST_FIX = [
     ("│   └── workbuddy-checkin.airscript.js        # 本机版（备用）\n", ""),
     ("node --check templates/workbuddy-checkin.airscript.js && echo \"ASSET OK\"",
      "node --check templates/workbuddy-checkin-cloud.airscript.js && echo \"ASSET OK\""),
+    # ── 描述≠实现（发布版已无解密能力，文档不能再说「解密」）──
+    ("- 取密钥与解密只在本机进行，密钥与令牌**不外传**（仅在调用签到/刷新接口时上行，这是功能必需的）",
+     "- 凭据只在本机使用，**不外传**（仅在调用签到/刷新接口时上行，这是功能必需的）"),
+    ("- 解密只在本机进行，密钥与令牌不外传（仅在调用签到 / 刷新接口时上行，这是功能必需的）。",
+     "- 凭据只在本机使用，不外传（仅在调用签到 / 刷新接口时上行，这是功能必需的）。"),
+    # install.bat 目录树说明：发布版无签到自测
+    ("├── install.bat                       # env check + live check-in self-test",
+     "├── install.bat                       # env check + cloud config check"),
+    ("├── install.bat                       # 环境体检 + 签到自测",
+     "├── install.bat                       # 环境体检 + 云端配置检查"),
     # ── 分段写入相关（split_token 已从发布包剔除，这些描述一并清掉）──
     ("再用 `split_token.py` 重新分段写入 E 列，或直接手动粘贴覆盖 B1。",
      "直接手动粘贴覆盖 B1。"),
@@ -716,7 +762,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed - help me recover and re-run it"
   - "Show my current check-in streak and total credits"
-version: "2.0.6"
+version: "2.0.7"
 author: sprite
 agent_created: true
 ---
@@ -962,14 +1008,27 @@ PY_LINE_DROP = {
 # ── 3k. .py 行级正则替换（用于结构改写，如删 if 块后提升 else）──────
 # 踩坑：CODE_PATCHES 用多行字符串匹配源码，遇到缩进/空行差异常不命中；
 #      而行级正则替换能稳定处理结构改写。
-PY_LINE_REPLACE = {}  # 已废弃：逐行改缩进无法保证语法正确，改用「保留结构 + 注入空实现」
+PY_LINE_REPLACE = {
+    "scripts/cloud_guard.py": [
+        # 「本地直签模式」文案 → 发布版的安全提示。
+        # 用捕获组保留原缩进（\\s+ 捕获 + 替换时复用），避免改缩进导致语法错误。
+        (re.compile(r"^(\s*)# 本地直签模式（核心零触碰）：无快照、无 AirScript-Token 时，$"),
+         r"\1# 未配置 AirScript-Token：无法查询云端状态"),
+        (re.compile(r"^(\s*)# 直接靠本机取令牌 \+ workbuddy\.cn 直签保连签，无需任何云端读/写。$"),
+         r"\1# 请在 scripts/kdocs_config.json 填入脚本令牌后重试。"),
+        (re.compile(r'^(\s*)print\("\[来源\] 本地直签模式 \| 今日已签（本地查状态确认）"\)$'),
+         r'\1print("[来源] 未配置 AirScript-Token")'),
+        (re.compile(r'^(\s*)print\("\[来源\] 本地直签模式（无快照/无 AirScript-Token）\| 今日尚未确认，进入自愈"\)$'),
+         r'\1print("[来源] 未配置 AirScript-Token，无法查询云端状态")'),
+    ],
+}
 
 # ── 4b. 平台版本号规则 ──────────────────────────────────────────
 # 平台要求：包内 version 必须**严格大于**该资产当前最新版本。
 # 踩坑：2.0.4 提交成功后，平台把 2.0.4 记为最新版本；再传同一个 2.0.4 会被拒
 #      「包内版本号 '2.0.4' 必须大于当前最新版本 '2.0.4'」。
 # 解决：记录「平台已提交过的最高版本」，打包时自动抬升到它之上。
-PLATFORM_SUBMITTED_VER = "2.0.5"   # 平台已接受过的最高版本（报告 MD5 c3cdbd02... 已确认）
+PLATFORM_SUBMITTED_VER = "2.0.6"   # 平台已接受过的最高版本（报告 MD5 c3cdbd02... 已确认）
 
 
 def bump_version_above(ver, floor_str):
@@ -1239,6 +1298,23 @@ def build(out_zip):
             body = body.replace("def do_heal(", "\n".join(stub_lines) + "def do_heal(", 1)
             open(cg, "w", encoding="utf-8", newline="").write(body)
             print("  [注] cloud_guard.py 注入发布版空实现 (local_status/read_saved_at)")
+
+    # .py 行级正则替换（结构改写 / 文案替换）
+    for rel, reps in PY_LINE_REPLACE.items():
+        p = os.path.join(TMP, rel)
+        if not os.path.exists(p):
+            continue
+        lines = open(p, encoding="utf-8").read().split("\n")
+        out = []
+        for line in lines:
+            new = line
+            for pat, rep in reps:
+                new2 = pat.sub(rep, new)
+                if new2 != new:
+                    print("  [行改] %s : %s" % (rel, new2.strip()[:70]))
+                new = new2
+            out.append(new)
+        open(p, "w", encoding="utf-8", newline="").write("\n".join(out))
 
     # .py 语法自检：结构改写后必须仍是合法 Python，否则中止打包
     import py_compile
