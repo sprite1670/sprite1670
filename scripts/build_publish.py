@@ -65,6 +65,8 @@ GITIGNORE_PATTERNS = [
     "__pycache__/",
     ".workbuddy/",
     "*.pyc",
+    "_pyc_tmp",
+    "_pyc_check_tmp",
 ]
 
 
@@ -221,6 +223,10 @@ NEW_SECTION5 = '''    # ---- 5. summary ----
 
 CODE_PATCHES = {
     "scripts/cloud_guard.py": [
+        # 发布版剔除「本地直签」能力（用户 11-04 新增）：它依赖本机 accessToken
+        # （来源 wb_checkin.py extract），发布版无此能力来源 → 既是死代码又是风险源。
+        # 腾讯引擎对本文件描述「失败时执行自愈或本地直签」直接判恶意。
+        # 注意：这段必须按行区间删（正则易因空行/缩进不匹配），见 PY_LINE_DROP。
         ("WB_CHECKIN = os.path.join(HERE, \"wb_checkin.py\")\n",
          "# WB_CHECKIN removed in published build (local token retrieval excluded for platform security)\n"),
         # 发布版 do_heal 已被整段替换，SPLIT 常量在其余代码中不再被引用 —— 一并移除
@@ -917,6 +923,18 @@ STRIP_FILENAMES = ["wb_checkin.py", "decrypt_envelope.js", "api-spec.md"]
 # 踩坑：CODE_PATCHES 用多行字符串匹配源码，遇到缩进/空行差异常常不命中。
 # 对「整段删掉」的诉求，用「按行过滤」最稳。
 PY_LINE_DROP = {
+    # cloud_guard.py：整段删除「本地直接签到」区块 + 清理提及被剔除文件的注释
+    # 起点 = "# ── 本地直接签到"，终点 = "def do_heal("（不含）
+    "scripts/cloud_guard.py": [
+        "RANGE_START|# ── 本地直接签到",
+        "RANGE_END|def do_heal(",
+        # 注意：main() 里的「本地直签模式」if 分支**保留结构**（不删）。
+        # 原因：删掉 if 块后 else: 及其 12 空格缩进内容需要整体反缩进 4 空格，
+        #      逐行正则改缩进无法保证语法正确（实测 IndentationError）。
+        #      改为：保留分支，把其中调用的本机直签函数替换为发布版安全的空实现。
+        "# WB_CHECKIN removed in published build (process-memory token extraction excluded for platform security)",
+        "# WB_CHECKIN removed in published build (local token retrieval excluded for platform security)",
+    ],
     "scripts/check_kdocs_ready.py": [
         # 发布版不使用 E 列分段区 → 文档头说明、该检查项、读取提示全部删掉
         "  4. E 列分段区已清空",
@@ -934,12 +952,12 @@ PY_LINE_DROP = {
         # （drop 与 replace 在同一列表内按序执行，replace 会被 drop 抢先）
         "    print(\"         --b2 '<B2值>' --helper '<E1>' '<E2>' ... --export-json\")",
     ],
-    "scripts/cloud_guard.py": [
-        # 注释里提到被剔除的脚本名 → 中性化
-        "# WB_CHECKIN removed in published build (process-memory token extraction excluded for platform security)",
-        "# WB_CHECKIN removed in published build (local token retrieval excluded for platform security)",
-    ],
 }
+
+# ── 3k. .py 行级正则替换（用于结构改写，如删 if 块后提升 else）──────
+# 踩坑：CODE_PATCHES 用多行字符串匹配源码，遇到缩进/空行差异常不命中；
+#      而行级正则替换能稳定处理结构改写。
+PY_LINE_REPLACE = {}  # 已废弃：逐行改缩进无法保证语法正确，改用「保留结构 + 注入空实现」
 
 # ── 4. 残余敏感令牌（必须归零）───────────────────────────────────
 HARD_TOKENS = [
@@ -1099,20 +1117,91 @@ def build(out_zip):
         open(p, "w", encoding="utf-8", newline="").write(t)
         print("  [改] %s" % rel)
 
-    # .py 行级删除（发布版不需要的检查项 / 提及）
+    # .py 行级删除（发布版不需要的检查项 / 提及 / 整段能力）
     for rel, drops in PY_LINE_DROP.items():
         p = os.path.join(TMP, rel)
         if not os.path.exists(p):
             continue
         lines = open(p, encoding="utf-8").read().split("\n")
         kept = []
+        in_range = False
         for line in lines:
             s = line.strip()
-            if any(s.startswith(d.strip()) for d in drops):
-                print("  [删行] %s : %s" % (rel, s[:70]))
-                continue
+            # 区间删除：规则格式 "RANGE_START|目标前缀" / "RANGE_END|目标前缀"
+            #   从匹配的 START 行开始删，到匹配的 END 行结束（END 行本身保留）
+            if in_range:
+                for d in drops:
+                    if "|" not in d:
+                        continue
+                    action, target = d.split("|", 1)
+                    if action == "RANGE_END" and s.startswith(target.strip()):
+                        in_range = False
+                        print("  [删段止] %s : %s" % (rel, s[:60]))
+                        break
+                else:
+                    continue
+                # 落到这里说明 END 行匹配成功 → END 行保留，继续下一行
+            else:
+                started = False
+                for d in drops:
+                    if "|" not in d:
+                        continue
+                    action, target = d.split("|", 1)
+                    if action == "RANGE_START" and s.startswith(target.strip()):
+                        in_range = True
+                        started = True
+                        print("  [删段] %s : %s" % (rel, s[:60]))
+                        break
+                if started:
+                    continue
+                if any(s.startswith(d.strip()) for d in drops if "|" not in d):
+                    print("  [删行] %s : %s" % (rel, s[:70]))
+                    continue
             kept.append(line)
         open(p, "w", encoding="utf-8", newline="").write("\n".join(kept))
+
+    # 发布版：注入 local_status / read_saved_at 的空实现（保持 main() 结构不变）
+    cg = os.path.join(TMP, "scripts", "cloud_guard.py")
+    if os.path.exists(cg):
+        body = open(cg, encoding="utf-8").read()
+        if "def local_status(" not in body:
+            stub_lines = [
+                "",
+                "def local_status(at):",
+                "    # 发布版无本机直签能力（该能力依赖本机 accessToken，仅完整版提供）",
+                "    return False",
+                "",
+                "",
+                "def read_saved_at():",
+                "    # 发布版无本机直签能力（该能力依赖本机 accessToken，仅完整版提供）",
+                "    return None",
+                "",
+                "",
+            ]
+            body = body.replace("def do_heal(", "\n".join(stub_lines) + "def do_heal(", 1)
+            open(cg, "w", encoding="utf-8", newline="").write(body)
+            print("  [注] cloud_guard.py 注入发布版空实现 (local_status/read_saved_at)")
+
+    # .py 语法自检：结构改写后必须仍是合法 Python，否则中止打包
+    import py_compile
+    for root, _, files in os.walk(TMP):
+        for fn in files:
+            if not fn.endswith(".py"):
+                continue
+            fp = os.path.join(root, fn)
+            try:
+                py_compile.compile(fp, doraise=True,
+                                   cfile=os.path.join(os.path.expanduser("~"), "_pyc_check_tmp"))
+            except Exception as e:
+                print("\n[!] 发布包语法错误: %s\n    %s" % (os.path.relpath(fp, TMP), e))
+                return False
+    print("  [检] 全部 .py 语法通过")
+    _tmpc = os.path.join(os.path.expanduser("~"), "_pyc_check_tmp")
+    if os.path.exists(_tmpc):
+        try:
+            os.remove(_tmpc)
+        except Exception:
+            pass
 
     # 文档脱敏
     for root, _, files in os.walk(TMP):
