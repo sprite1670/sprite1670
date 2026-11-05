@@ -711,7 +711,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed - help me recover and re-run it"
   - "Show my current check-in streak and total credits"
-version: "2.0.4"
+version: "2.0.5"
 author: sprite
 agent_created: true
 ---
@@ -959,6 +959,42 @@ PY_LINE_DROP = {
 #      而行级正则替换能稳定处理结构改写。
 PY_LINE_REPLACE = {}  # 已废弃：逐行改缩进无法保证语法正确，改用「保留结构 + 注入空实现」
 
+# ── 4b. 平台版本号规则 ──────────────────────────────────────────
+# 平台要求：包内 version 必须**严格大于**该资产当前最新版本。
+# 踩坑：2.0.4 提交成功后，平台把 2.0.4 记为最新版本；再传同一个 2.0.4 会被拒
+#      「包内版本号 '2.0.4' 必须大于当前最新版本 '2.0.4'」。
+# 解决：记录「平台已提交过的最高版本」，打包时自动抬升到它之上。
+PLATFORM_SUBMITTED_VER = "2.0.4"   # 平台已接受过的最高版本
+
+
+def bump_version_above(ver, floor_str):
+    """把版本号抬到 floor_str 之上（逐段比较，必要时进位）。"""
+    def parse(v):
+        try:
+            return tuple(int(x) for x in v.strip().split("."))
+        except Exception:
+            return (0,)
+    cur, floor = parse(ver), parse(floor_str)
+    n = max(len(cur), len(floor))
+    cur = cur + (0,) * (n - len(cur))
+    floor = floor + (0,) * (n - len(floor))
+    if cur > floor:
+        return ver
+    # 抬到 floor 之上：把 floor 的最后一段 +1（若已到 9 则向前进位）
+    out = list(floor)
+    i = len(out) - 1
+    while i >= 0:
+        if out[i] < 9:
+            out[i] += 1
+            for j in range(i + 1, len(out)):
+                out[j] = 0
+            break
+        out[i] = 0
+        i -= 1
+    if i < 0:
+        out = [1] + out          # 全部进位溢出，如 9.9.9 -> 10.0.0
+    return ".".join(str(x) for x in out)
+
 # ── 4. 残余敏感令牌（必须归零）───────────────────────────────────
 HARD_TOKENS = [
     "ReadProcessMemory", "OpenProcess", "VirtualQueryEx",
@@ -1034,9 +1070,26 @@ def read_pkg_name():
     return "sprite-workbuddy-checkin"
 
 def build(out_zip):
-    global PKG_DIR
+    global PKG_DIR, PUBLISH_FRONTMATTER
     PKG_DIR = read_pkg_name()
     print("  [包] 技能ID / 顶层目录名 = %s" % PKG_DIR)
+
+    # 版本号自动抬升：必须严格大于平台已记录的最高版本
+    _sk = os.path.join(REPO, "SKILL.md")
+    try:
+        _t = open(_sk, encoding="utf-8").read()
+        _m = re.search(r'^version://s*"?([^"//n]+)', _t, re.M)
+        if _m:
+            _need = bump_version_above(_m.group(1).strip(), PLATFORM_SUBMITTED_VER)
+            if _need != _m.group(1).strip():
+                print("  [版] 版本号 %s -> %s（须大于平台已记录的 %s）"
+                      % (_m.group(1).strip(), _need, PLATFORM_SUBMITTED_VER))
+                _t2 = re.sub(r'^version://s*"?[^"//n]+', 'version: "%s"' % _need, _t, count=1, flags=re.M)
+                open(_sk, "w", encoding="utf-8", newline="").write(_t2)
+                PUBLISH_FRONTMATTER = re.sub(r'^version://s*"?[^"//n]+', 'version: "%s"' % _need,
+                                             PUBLISH_FRONTMATTER, count=1, flags=re.M)
+    except Exception as e:
+        print("  [警告] 版本号自动抬升失败: %s" % e)
 
     # 清理旧临时目录（含仓库内可能残留的 build_publish_tmp）
     for stale in (TMP, os.path.join(REPO, "build_publish_tmp")):
