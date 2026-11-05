@@ -15,7 +15,15 @@
   python3 kdocs_cloud.py status                       # 查云端状态（只读，不签到）
   python3 kdocs_cloud.py run                          # 触发签到
   python3 kdocs_cloud.py run --force                  # 强制重签（忽略今日已签标记）
+  python3 kdocs_cloud.py settoken "<新accessToken>"   # 远端把新令牌写回 B1 并立即签到（自愈写回用）
   python3 kdocs_cloud.py check                        # 平台配置校验（试开→读→关回）
+
+说明：
+  settoken 通过远端 AirScript（即云端签到脚本本体，已内置 settoken 模式）把新令牌
+  写入 B1，并立即用新令牌完成一次签到。它走 AirScript-Token 鉴权，不依赖任何 MCP
+  工具，因此可从本机 guard 全自动执行 —— 这是"真·零触碰"的写回通道。
+  前置：kdocs_config.json 的 token 字段已填【该脚本的 AirScript-Token】，且云端脚本
+  已升级到含 settoken 模式的版本（templates/workbuddy-checkin-cloud-at-direct.airscript.js）。
 
 凭据从环境变量或 config.json 读取：
   KDOCS_FILE_ID / KDOCS_SCRIPT_ID / KDOCS_TOKEN
@@ -104,8 +112,9 @@ def call(cfg, argv=None, timeout=90):
 
 def main():
     ap = argparse.ArgumentParser(description="金山文档 AirScript 云端调用器")
-    ap.add_argument("cmd", choices=["status", "run", "check"])
+    ap.add_argument("cmd", choices=["status", "run", "check", "settoken"])
     ap.add_argument("--force", action="store_true", help="强制重签")
+    ap.add_argument("--token-value", default="", help="settoken 模式下的新 accessToken")
     ap.add_argument("--config", default=CONFIG)
     args = ap.parse_args()
 
@@ -130,6 +139,11 @@ def main():
         r = call(cfg, {"check": "1"})
     elif args.cmd == "run":
         r = call(cfg, {"force": "1"} if args.force else {})
+    elif args.cmd == "settoken":
+        if not args.token_value:
+            print("[X] settoken 模式必须提供 --token-value")
+            return 2
+        r = call(cfg, {"settoken": args.token_value})
     else:  # check —— 只调平台校验接口意义不大，这里复用一次只读调用
         r = call(cfg, {"check": "1"})
 

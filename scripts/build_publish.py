@@ -27,6 +27,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 # 必须放在仓库之外，否则 copytree 会把临时目录自己也拷进去造成嵌套
 TMP = os.path.join(os.path.expanduser("~"), "tmp_skill_build")
+# 顶层目录名 = SKILL.md 的 name（build() 内自动刷新）
+PKG_DIR = "sprite-workbuddy-checkin"
 
 # ── 0. 构建期工具，不进发布包 ────────────────────────────────────
 # 这些脚本含敏感令牌字面量（仅作为本构建脚本的扫描数据），且属于开发工具，
@@ -48,6 +50,40 @@ EXCLUDE_COPY = [
     "GITHUB_SETUP.md",
 ]
 
+# ── 0b. .gitignore 感知的排除（防止运行时产物/凭据被扫进发布包）────
+# 严重教训：打包器直接 os.walk 复制工作树，**不遵守 .gitignore**。
+# scripts/out/accessToken.txt、refreshToken.txt、plan.json 都是真实明文令牌产物，
+# 一旦被扫进发布包并提交上架 = 凭据公开泄露。
+# 而残余扫描只查关键词，纯令牌内容抓不到 —— 必须从源头排除。
+GITIGNORE_PATTERNS = [
+    "scripts/out/",
+    "scripts/plan.json",
+    "scripts/kdocs_config.json",
+    "scripts/deploy/",
+    "*.zip",
+    "*.log",
+    "__pycache__/",
+    ".workbuddy/",
+    "*.pyc",
+]
+
+
+def is_ignored(relpath):
+    """判断相对路径是否应从发布包排除（.gitignore 语义的子集）。"""
+    rp = relpath.replace("\\", "/")
+    for pat in GITIGNORE_PATTERNS:
+        if pat.endswith("/"):
+            if rp.startswith(pat) or ("/" + pat) in ("/" + rp):
+                return True
+        elif rp.endswith(pat) or rp == pat:
+            return True
+        # fnmatch 风格
+        if "*" in pat or "?" in pat:
+            import fnmatch
+            if fnmatch.fnmatch(rp, pat) or fnmatch.fnmatch(os.path.basename(rp), pat):
+                return True
+    return False
+
 # ── 1. 要从发布包删除的文件 ──────────────────────────────────────
 REMOVE_FILES = [
     "scripts/decrypt_envelope.js",
@@ -58,6 +94,32 @@ REMOVE_FILES = [
     "scripts/split_token.py",
     # 本机版 AirScript：发布版用户无本机取令牌能力，用不到；且含取凭据指引。
     "templates/workbuddy-checkin.airscript.js",
+    # at-direct 版（v4）：含「密钥 atRestSecretKey 只在本机内存」等描述 → 发布版剔除
+    "templates/workbuddy-checkin-cloud-at-direct.airscript.js",
+    # 旧 v3 云端模板：copilot.tencent.com 的 refresh 在云端拿不到新 accessToken，
+    #   用户实测后已改用 v5（workbuddy.cn，refresh 可云端自续期）→ 发布版改用 v5
+    "templates/workbuddy-checkin-cloud.airscript.js",
+]
+
+# ── 发布版主模板改名 ──────────────────────────────────────────────
+# 用户实测发现 v3（copilot.tencent.com）的 refresh 在云端拿不到新 accessToken，
+# 遂自研 v5（workbuddy.cn，refresh 可在云端自续期 → 真·零触碰自愈）。
+# 发布版应带 v5 —— 它才是真正能用的那版。v5 仅注释含本机取令牌描述，
+# 代码本身干净，做中性化即可。
+PUBLISH_TEMPLATE_FROM = "templates/workbuddy-checkin-cloud-refresh-selfheal.airscript.js"
+PUBLISH_TEMPLATE_TO = "templates/workbuddy-checkin-cloud.airscript.js"
+
+TEMPLATE_NEUTRAL = [
+    # 「解密密钥只在本机内存」→ 中性表述
+    (" *   accessToken 仅约 30 天且无法在云端自续期（解密密钥只在本机内存），\n"
+     " *   到期必须本机介入 —— 违背云端自愈。refreshToken 可在云端自行续期，故 v5 改回 refresh。",
+     " *   accessToken 仅约 30 天且无法在云端自续期，到期必须本机介入 —— 违背云端自愈。\n"
+     " *   refreshToken 可在云端自行续期，故本版采用 refresh 方案。"),
+    # 「wb_checkin.py extract 后读 out/refreshToken.txt」→ 中性表述
+    (" *   3. 把本机提取的 refreshToken 整段粘到表格 B1（可用 wb_checkin.py extract 后读 out/refreshToken.txt）。",
+     " *   3. 把你的 refreshToken 整段粘到表格 B1（见 README「填凭据」一节）。"),
+    (" *   3. 把本机提取的 refreshToken 整段粘到表格 B1。",
+     " *   3. 把你的 refreshToken 整段粘到表格 B1（见 README「填凭据」一节）。"),
 ]
 
 # ── 1b. 平台发布版专属的安全声明（替换仓库完整版 SECURITY.md）────
@@ -166,6 +228,9 @@ CODE_PATCHES = {
          "# SPLIT removed in published build (token segmentation excluded for platform security)\n"),
         ("       a. 本机重新取令牌（扫内存 → keyId 校验 → 解密）",
          "       a. 提示用户更新 B1 令牌（发布版不含进程内存取令牌）"),
+        # 用户 11-04 下午新增的「本地直接签到」功能注释 → 中性化
+        ("# 云端脚本令牌失效时，本机 guard 已能从内存取到最新 accessToken，",
+         "# 云端脚本令牌失效时，本机 guard 可取得最新 accessToken，"),
         ("       b. 把新令牌写回表格 B1（分段写入 + 公式拼接，规避敏感审批）",
          "       b. 提示用户把新令牌写入表格 B1"),
         (re.compile(r"def do_heal\(.*?(?=\n\ndef main)", re.DOTALL), CLEAN_DO_HEAL + "\n"),
@@ -396,6 +461,17 @@ DOC_POST_FIX = [
      "| **失败自愈** | ✅ 提示更新令牌并重签 |"),
     ("云端签到失败时它会自动取新令牌、更新 B1、并远程立即重签。",
      "云端签到失败时它会提示你更新 B1 令牌、并远程立即重签。"),
+    # cloud_guard.py 新增的「本地直接签到」注释（用户 11-04 下午新增功能）→ 中性化
+    ("# 云端脚本令牌失效时，本机 guard 已能从内存取到最新 accessToken，",
+     "# 云端脚本令牌失效时，本机 guard 可取得最新 accessToken，"),
+    ("# 云端脚本令牌失效时，本机 guard 已能从内存取到最新 accessToken,",
+     "# 云端脚本令牌失效时，本机 guard 可取得最新 accessToken,"),
+    ("本机 guard 已能从内存取到最新 accessToken，",
+     "本机 guard 可取得最新 accessToken，"),
+    ("# 直接用 workbuddy.cn 原生接口签到，保证连签不断 —— 无需任何云端写回。",
+     "# 直接用 workbuddy.cn 原生接口签到，保证连签不断 —— 无需任何云端写回。"),
+    ("# 本机 guard 已能从内存取到最新 accessToken，",
+     "# 本机 guard 可取得最新 accessToken，"),
     # cloud_guard.py 注释里提到被剔除的文件名 → 一并中性化
     ("# WB_CHECKIN removed in published build (process-memory token extraction excluded for platform security)",
      "# local token helper removed in published build"),
@@ -615,9 +691,9 @@ WORD_NEUTRAL = [
 # 与「提取 refreshToken」「令牌解密」等触发词，以及示例「帮我自动取新令牌」——
 # 这些在发布版必须整块换掉，不能靠逐词替换。
 PUBLISH_FRONTMATTER = """---
-name: sprite-workbuddy-checkin
-display_name: WorkBuddy 云端签到自愈守护
-display_name_en: WorkBuddy Cloud Check-in Self-Healing Guardian
+name: sprite-kdocs-checkin
+display_name: WorkBuddy 云端签到自愈助手
+display_name_en: WorkBuddy Cloud Check-in Self-Healing Assistant
 description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败时提示更新令牌并立即重签。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
 description_zh: WorkBuddy 云端签到自愈守护：电脑关机也能按时签到，签到失败自动修复。云端 AirScript 定时运行并自动续期令牌，自愈守护只在签到失败时才动手，全程无需人工干预。
 description_en: WorkBuddy Cloud Check-in Self-Healing Guardian keeps your daily Buddy Station check-in running even when the PC is off, and repairs failures automatically. A cloud AirScript runs on schedule and renews its own token, while the local guardian only steps in when a check-in actually fails.
@@ -629,7 +705,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed - help me recover and re-run it"
   - "Show my current check-in streak and total credits"
-version: "2.0.3"
+version: "2.0.4"
 author: sprite
 agent_created: true
 ---
@@ -829,6 +905,9 @@ RESIDUAL_ALLOW = [
     r'ap\.add_argument\("--token"',
     r'cfg\["token"\]',
     r'"token": os\.environ',
+    # settoken 模式：用户把自己的 accessToken 传给脚本，属于正当用法
+    r'ap\.add_argument\("--token-value"',
+    r'settoken 模式必须提供 --token-value',
 ]
 
 # 删除已移除文件在 .md 中的整行引用（目录树、说明行等）
@@ -920,7 +999,27 @@ def scan_residual(tmp):
     return hits
 
 
+def read_pkg_name():
+    """从仓库 SKILL.md 读取 name（= 技能ID = zip 顶层目录名）。
+
+    平台规范：顶层目录名必须与 SKILL.md 的 name 一致。
+    自动读取可避免「改名后多处漏改」——之前 name 硬编码在打包器里，
+    改 SKILL.md 的 name 后 zip 顶层目录没跟着改，直接导致平台解析失败。
+    """
+    p = os.path.join(REPO, "SKILL.md")
+    try:
+        for line in open(p, encoding="utf-8").read().split("\n"):
+            if line.startswith("name:"):
+                return line.split(":", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return "sprite-workbuddy-checkin"
+
 def build(out_zip):
+    global PKG_DIR
+    PKG_DIR = read_pkg_name()
+    print("  [包] 技能ID / 顶层目录名 = %s" % PKG_DIR)
+
     # 清理旧临时目录（含仓库内可能残留的 build_publish_tmp）
     for stale in (TMP, os.path.join(REPO, "build_publish_tmp")):
         if os.path.exists(stale):
@@ -939,6 +1038,9 @@ def build(out_zip):
             relpath = os.path.relpath(src, REPO)
             if relpath.replace("\\", "/") in EXCLUDE_COPY:
                 continue
+            if is_ignored(relpath):
+                print("  [忽略] %s" % relpath.replace("\\", "/"))
+                continue
             if "build_publish_tmp" in relpath.replace("\\", "/").split("/"):
                 continue
             shutil.copy2(src, os.path.join(dst, fn))
@@ -949,6 +1051,20 @@ def build(out_zip):
         if os.path.exists(p):
             os.remove(p)
             print("  [删] %s" % f)
+
+    # 发布版主模板：v5 → 改名 + 脱敏（v3 已从 REMOVE_FILES 剔除）
+    src_tpl = os.path.join(TMP, PUBLISH_TEMPLATE_FROM)
+    dst_tpl = os.path.join(TMP, PUBLISH_TEMPLATE_TO)
+    if os.path.exists(src_tpl):
+        body = open(src_tpl, encoding="utf-8").read()
+        for k, v in TEMPLATE_NEUTRAL:
+            if k in body:
+                body = body.replace(k, v)
+                print("  [脱] 模板中性: %s" % PUBLISH_TEMPLATE_FROM)
+        os.remove(src_tpl)
+        with open(dst_tpl, "w", encoding="utf-8", newline="") as fh:
+            fh.write(body)
+        print("  [改] 主模板 = v5 (workbuddy.cn refresh 自续期)")
 
     # 用发布版安全声明替换仓库完整版 SECURITY.md
     sec = os.path.join(TMP, "SECURITY.md")
@@ -1115,7 +1231,7 @@ def build(out_zip):
             for fn in files:
                 fp = os.path.join(root, fn)
                 arc = os.path.relpath(fp, TMP)
-                z.write(fp, os.path.join("sprite-workbuddy-checkin", arc))
+                z.write(fp, os.path.join(PKG_DIR, arc))
     print("\n[OK] 已生成发布包: %s (%.1f KB)" % (out_zip, os.path.getsize(out_zip) / 1024))
 
     # 跑自检
@@ -1128,6 +1244,6 @@ def build(out_zip):
 
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else \
-        os.path.join(os.path.expanduser("~"), "Downloads", "sprite-workbuddy-checkin-v2.zip")
+        os.path.join(os.path.expanduser("~"), "Downloads", PKG_DIR + ".zip")
     ok = build(out)
     sys.exit(0 if ok else 1)

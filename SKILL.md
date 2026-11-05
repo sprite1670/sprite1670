@@ -1,7 +1,7 @@
 ---
-name: sprite-workbuddy-checkin
-display_name: WorkBuddy 云端签到自愈守护
-display_name_en: WorkBuddy Cloud Check-in Self-Healing Guardian
+name: sprite-kdocs-checkin
+display_name: WorkBuddy 云端签到自愈助手
+display_name_en: WorkBuddy Cloud Check-in Self-Healing Assistant
 description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败才自动取新令牌、更新部署并立即重签。Windows 下可扫描客户端进程内存提取 atRestSecretKey 并解密登录态信封（AES-256-GCM），无需重启客户端；本机签到、连签查询一键完成。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、提取 refreshToken、换新令牌、令牌解密、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
 description_zh: WorkBuddy 云端签到自愈守护：电脑关机也能按时签到，签到失败自动修复。云端 AirScript 定时运行并自动续期令牌，自愈守护只在签到失败时才动手，全程无需人工干预。
 description_en: WorkBuddy Cloud Check-in Self-Healing Guardian keeps your daily Buddy Station check-in running even when the PC is off, and repairs failures automatically. A cloud AirScript runs on schedule and renews its own token, while the local guardian only steps in when a check-in actually fails.
@@ -13,7 +13,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed — grab a fresh token and re-run it automatically"
   - "Show my current check-in streak and total credits"
-version: "2.0.3"
+version: "2.0.4"
 author: sprite
 agent_created: true
 ---

@@ -34,6 +34,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "out")
 STATE_FILE = os.path.join(OUT_DIR, "guard_state.json")
+LOCAL_STATE_FILE = os.path.join(OUT_DIR, "local_state.json")
 WB_CHECKIN = os.path.join(HERE, "wb_checkin.py")
 CLOUD = os.path.join(HERE, "kdocs_cloud.py")
 SPLIT = os.path.join(HERE, "split_token.py")
@@ -165,6 +166,122 @@ def read_sheet_snapshot(table_url):
         return None
 
 
+# ── 本地直接签到（真·零触碰的核心）────────────────────────────
+# 云端脚本令牌失效时，本机 guard 已能从内存取到最新 accessToken，
+# 直接用 workbuddy.cn 原生接口签到，保证连签不断 —— 无需任何云端写回。
+import urllib.request
+import urllib.error
+
+API_BASE = "https://www.workbuddy.cn"
+
+
+def local_sign(at, log=print):
+    """用 accessToken 直接调用 workbuddy.cn 完成签到 + 连签状态查询。返回 (ok, msg)。
+
+    注意：该接口在「今日已签」时返回 HTTP 400 + body {"code":10001,...}，
+    在「首次签到成功」时返回 HTTP 200 + {"code":0,...}。两种都算成功，
+    因此这里统一解析响应体里的业务 code，而不是依赖 HTTP 状态码。
+    """
+    if not at or len(at) < 100:
+        return False, "本地没有可用令牌"
+    headers = {"Content-Type": "application/json", "Authorization": "Bearer " + at}
+    body = None
+    try:
+        req = urllib.request.Request(
+            API_BASE + "/v2/billing/meter/daily-checkin",
+            data=b"{}", method="POST", headers=headers,
+        )
+        r = urllib.request.urlopen(req, timeout=20)
+        body = r.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        # 业务层已签等情况会带 4xx 状态码，但 body 仍是合法 JSON，需解析
+        try:
+            body = e.read().decode("utf-8", "replace")
+        except Exception:
+            body = None
+    except Exception as e:
+        return False, "本地签到请求异常: %s" % e
+    if not body:
+        return False, "本地签到无响应"
+    try:
+        j = json.loads(body)
+    except Exception:
+        return False, "本地签到返回非JSON: %s" % body[:120]
+    code = j.get("code")
+    if code == 0:
+        credit = ((j.get("data") or {}).get("credit")) or 100
+        msg = "本地签到成功 +%s 积分" % credit
+    elif code == 10001:
+        msg = "本地确认今日已签（幂等跳过）"
+    else:
+        return False, "本地签到异常 code=%s %s" % (code, str(j.get("msg"))[:120])
+
+    # 连签状态（仅用于展示）
+    try:
+        req = urllib.request.Request(
+            API_BASE + "/v2/billing/meter/checkin-activity-status",
+            data=b"{}", method="POST", headers=headers,
+        )
+        r = urllib.request.urlopen(req, timeout=20)
+        s = json.loads(r.read().decode("utf-8", "replace"))
+        if s.get("code") == 0 and s.get("data"):
+            d = s["data"]
+            msg += " | 连签 %s 天，累计 %s 分" % (d.get("streak_days"), d.get("total_credits"))
+    except Exception:
+        pass
+    return True, msg
+
+
+def local_status(at):
+    """用 accessToken 查今日是否已签到，返回 True/False。"""
+    if not at or len(at) < 100:
+        return False
+    headers = {"Content-Type": "application/json", "Authorization": "Bearer " + at}
+    try:
+        req = urllib.request.Request(
+            API_BASE + "/v2/billing/meter/checkin-activity-status",
+            data=b"{}", method="POST", headers=headers,
+        )
+        r = urllib.request.urlopen(req, timeout=20)
+        s = json.loads(r.read().decode("utf-8", "replace"))
+        if s.get("code") == 0 and s.get("data"):
+            return bool(s["data"].get("today_checked_in"))
+    except Exception:
+        return False
+    return False
+
+
+def read_saved_at():
+    """读取本地已存的 accessToken（优先）/ refreshToken（兜底）。"""
+    for p in (os.path.join(OUT_DIR, "accessToken.txt"),
+              os.path.join(OUT_DIR, "refreshToken.txt")):
+        if os.path.exists(p):
+            try:
+                v = open(p, encoding="utf-8").read().strip()
+                if v:
+                    return v
+            except Exception:
+                pass
+    return ""
+
+
+def load_local_state():
+    try:
+        with open(LOCAL_STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_local_state(obj):
+    try:
+        os.makedirs(OUT_DIR, exist_ok=True)
+        with open(LOCAL_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
 def decide(status, last_ok, today, last_result=""):
     """根据云端状态判定是否需要自愈。返回 (need_heal, reason)。"""
     if status == "OK":
@@ -189,60 +306,68 @@ def decide(status, last_ok, today, last_result=""):
 
 
 def do_heal(cfg, table_url, dry_run=False, log=print):
-    """自愈流程：取新令牌 → 写回 B1 → 远程触发重签。"""
+    """自愈流程：取新令牌 → 本地直签保连签 →（可选）云端写回 B1。"""
     log("[自愈] 开始重新取令牌 ...")
     code, out = sh([sys.executable, WB_CHECKIN, "extract"], timeout=180)
     if code != 0:
         log("[自愈] 取令牌失败：\n%s" % out.strip()[-800:])
         return False, "取令牌失败"
 
-    rt_path = os.path.join(OUT_DIR, "refreshToken.txt")
-    if not os.path.exists(rt_path):
+    # 自愈写回的是 accessToken（refresh 接口已废弃，云端改为 accessToken 直签）
+    at_path = os.path.join(OUT_DIR, "accessToken.txt")
+    if not os.path.exists(at_path):
+        at_path = os.path.join(OUT_DIR, "refreshToken.txt")  # 兜底
+    if not os.path.exists(at_path):
         log("[自愈] 未产出令牌文件")
         return False, "未产出令牌"
 
+    at = ""
+    try:
+        at = open(at_path, encoding="utf-8").read().strip()
+    except Exception as e:
+        return False, "读令牌失败: %s" % e
+    if len(at) < 100:
+        return False, "令牌长度异常(%d)" % len(at)
+
     if dry_run:
-        log("[自愈][dry-run] 跳过写回表格与触发重签")
+        log("[自愈][dry-run] 跳过本地签到与写回")
         return True, "dry-run"
 
-    # 生成写入计划（分段，规避敏感审批）
-    code, out = sh([sys.executable, SPLIT], timeout=60)
-    if code != 0:
-        log("[自愈] 生成分段计划失败：\n%s" % out.strip()[-500:])
-        return False, "分段失败"
+    # ① 本地直签：保证连签不断（核心零触碰，不依赖任何云端写回）
+    log("[自愈] 本地直接签到（workbuddy.cn）...")
+    ok, msg = local_sign(at, log)
+    save_local_state({"date": today_str(), "ok": ok, "msg": msg, "at_len": len(at)})
+    log("[自愈] %s" % msg)
 
-    plan_path = os.path.join(HERE, "plan.json")
-    try:
-        with open(plan_path, encoding="utf-8") as f:
-            plan = json.load(f)
-    except Exception as e:
-        log("[自愈] 读 plan.json 失败: %s" % e)
-        return False, "plan 读取失败"
+    # ② 生成分段写回计划（供 MCP / 手动兜底参考）
+    code, out = sh([sys.executable, SPLIT, "--input", at_path], timeout=60)
+    if code == 0:
+        try:
+            with open(os.path.join(HERE, "plan.json"), encoding="utf-8") as f:
+                plan = json.load(f)
+            log("[自愈] 分段写回计划已生成（helper_cells=%d，B1公式: %s）"
+                % (len(plan.get("helper_cells", [])), plan.get("formula", "")))
+        except Exception:
+            pass
+    else:
+        log("[自愈] 生成分段计划失败（仅影响兜底参考，不影响本地签到）：%s" % out.strip()[-300:])
 
-    # 写回 B1 需要 MCP 工具（脚本无法直连），此处输出待写指令
-    log("[自愈] 需要把新令牌写回表格 B1。请用金山文档 MCP 工具执行（分段写入）：")
-    for c in plan["helper_cells"]:
-        log("    %s  len=%d  (row=%d col=%d)" % (c["addr"], c["len"], c["row"], c["col"]))
-    log("    B1 公式: %s" % plan["formula"])
-    log("    写完校验: LEN(B1)==%d 且 EXACT(B1, 拼接)==OK" % plan["token_len"])
-
-    # 触发云端重签（需要 AirScript-Token；没有则降级：等次日定时任务自愈）
+    # ③ 云端写回 B1 + 立即签到（需要 AirScript-Token；无则降级为仅本地签）
     if not cfg.get("token"):
-        log("[自愈] 未配置 AirScript-Token，无法远程触发重签。")
-        log("        令牌已写回 B1，等待次日云端定时任务自动重签即可。")
-        log("        如需立即重签：在 AirScript 编辑器点「运行」，或补齐 token 后重跑本命令。")
-        return True, "令牌已更新，等待云端定时任务重签"
+        if ok:
+            log("[自愈] 已通过本地直签保住连签；云端 B1 未刷新。")
+            log("        如需云端表格也同步刷新（恢复云端冗余 + 表内状态变绿），")
+            log("        请在 kdocs_config.json 的 token 填入该脚本的 AirScript-Token。")
+            return True, "本地签到成功（云端B1未刷新）"
+        return False, "本地签到失败"
 
-    log("[自愈] 触发云端重签 ...")
-    code, out = sh([sys.executable, CLOUD, "run", "--force"], timeout=120)
+    log("[自愈] 触发云端写回 B1 并签到（settoken）...")
+    code, out = sh([sys.executable, CLOUD, "settoken", at], timeout=120)
     log(out.strip()[-800:])
     if code != 0:
-        return False, "云端重签调用失败"
-
-    st, _ = cloud_status(cfg)
-    ok = bool(st and str(st.get("status", "")).upper() == "OK")
-    log("[自愈] 重签后状态: %s" % (st.get("status") if st else "未知"))
-    return ok, ("重签成功" if ok else "重签后仍非 OK")
+        # 云端写回失败，但本地已签，连签仍保住
+        return ok, ("本地签到成功，云端写回失败" if ok else "本地与云端均失败")
+    return True, "本地签到成功 + 云端B1已刷新"
 
 
 def main():
@@ -273,21 +398,29 @@ def main():
     else:
         have_token = bool(cfg.get("token"))
         if not have_token:
-            print("[X] 缺少 AirScript-Token，且无 MCP 快照")
-            print("    两种解决方式（任选其一）：")
-            print("    A) 用金山文档 MCP 工具读表格 B2/B5/B6，把结果写成 %s"
-                  % os.path.join(OUT_DIR, "sheet_snapshot.json"))
-            print("       格式：{\"status\":\"OK\",\"last_ok_date\":\"2026-11-03\",\"last_result\":\"...\"}")
-            print("    B) 在 AirScript 编辑器工具栏用【脚本令牌(beta)】/盾牌按钮创建 Token，")
-            print("       填入 %s 的 token 字段" % CONFIG)
-            return 2
-        st, raw = cloud_status(cfg)
-        print("=== 云端状态 ===")
-        print(raw[-600:])
-        print()
-        status = str((st or {}).get("status", "UNKNOWN")).upper()
-        last_ok = norm_date((st or {}).get("last_ok_date"))
-        last_result = str((st or {}).get("last_result", "") or "")
+            # 本地直签模式（核心零触碰）：无快照、无 AirScript-Token 时，
+            # 直接靠本机取令牌 + workbuddy.cn 直签保连签，无需任何云端读/写。
+            saved_at = read_saved_at()
+            if saved_at and local_status(saved_at):
+                print("=== 本地状态 ===")
+                print("[来源] 本地直签模式 | 今日已签（本地查状态确认）")
+                print("\n✅ 无需动作（今日本地已签到）")
+                save_state({"status": "OK", "action": "skip_local",
+                            "reason": "今日本地已签", "date": today})
+                return 0
+            print("=== 本地状态 ===")
+            print("[来源] 本地直签模式（无快照/无 AirScript-Token）| 今日尚未确认，进入自愈")
+            status = "UNKNOWN"
+            last_ok = ""
+            last_result = ""
+        else:
+            st, raw = cloud_status(cfg)
+            print("=== 云端状态 ===")
+            print(raw[-600:])
+            print()
+            status = str((st or {}).get("status", "UNKNOWN")).upper()
+            last_ok = norm_date((st or {}).get("last_ok_date"))
+            last_result = str((st or {}).get("last_result", "") or "")
 
     prev = load_state()
 
