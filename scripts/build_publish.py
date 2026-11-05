@@ -691,7 +691,7 @@ WORD_NEUTRAL = [
 # 与「提取 refreshToken」「令牌解密」等触发词，以及示例「帮我自动取新令牌」——
 # 这些在发布版必须整块换掉，不能靠逐词替换。
 PUBLISH_FRONTMATTER = """---
-name: sprite-kdocs-checkin
+name: sprite-workbuddy-checkin
 display_name: WorkBuddy 云端签到自愈助手
 display_name_en: WorkBuddy Cloud Check-in Self-Healing Assistant
 description: WorkBuddy 云端签到自愈守护 —— 电脑关机也能按时签到，签到失败自动修复，全程无需人工干预。云端 AirScript 跑在金山文档云端引擎（定时任务触发），每次运行自动刷新令牌并回写表格实现令牌自我续期；失败自愈守护每天检查状态，失败时提示更新令牌并立即重签。触发词：WorkBuddy 签到、云端签到自愈守护、云端签到、自愈守护、自动签到守护、Buddy 加油站、每日签到、自动签到、领积分、连签、写入金山文档、B1、AirScript 签到、电脑关机签到、定时签到、签到失败 code=12153、invalid_grant、刷新失败、WorkBuddy 打卡、派猫猫旅行。
