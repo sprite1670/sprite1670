@@ -275,6 +275,11 @@ CODE_PATCHES = {
     ],    "scripts/setup_cloud.py": [
         ("| B5 = FAIL | 令牌被服务端作废，需在电脑上跑 `wb_checkin.py extract`，把新令牌写回 B1 |",
          "| B5 = FAIL | 令牌被服务端作废，需更新 B1 的 refresh_token（本地完整版 skill 可提取，或手动复制） |"),
+        # 部署清单里的过时接口地址（v3 的 copilot.tencent.com → v5 实际使用的 workbuddy.cn）
+        ("│  POST copilot.tencent.com/v2/plugin/auth/token/refresh",
+         "│  POST www.workbuddy.cn/v2/plugin/auth/token/refresh"),
+        ("│  POST copilot.tencent.com/v2/billing/meter/daily-checkin",
+         "│  POST www.workbuddy.cn/v2/billing/meter/daily-checkin"),
     ],
 }
 
@@ -711,7 +716,7 @@ examples_en:
   - "Deploy my WorkBuddy check-in to KDocs so it signs in daily even when my PC is off"
   - "Check-in failed - help me recover and re-run it"
   - "Show my current check-in streak and total credits"
-version: "2.0.5"
+version: "2.0.6"
 author: sprite
 agent_created: true
 ---
@@ -964,7 +969,7 @@ PY_LINE_REPLACE = {}  # 已废弃：逐行改缩进无法保证语法正确，�
 # 踩坑：2.0.4 提交成功后，平台把 2.0.4 记为最新版本；再传同一个 2.0.4 会被拒
 #      「包内版本号 '2.0.4' 必须大于当前最新版本 '2.0.4'」。
 # 解决：记录「平台已提交过的最高版本」，打包时自动抬升到它之上。
-PLATFORM_SUBMITTED_VER = "2.0.4"   # 平台已接受过的最高版本
+PLATFORM_SUBMITTED_VER = "2.0.5"   # 平台已接受过的最高版本（报告 MD5 c3cdbd02... 已确认）
 
 
 def bump_version_above(ver, floor_str):
