@@ -23,6 +23,15 @@ WorkBuddy 客户端没运行，或进程名不是 WorkBuddy/CodeBuddy/Electron�
 ### 签到返回 `code=10001`
 **今日已签到，幂等正常返回**，不是错误。连签天数看 `checkin-activity-status`。
 
+### 「立即领取」按钮不是独立领取接口
+界面"立即领取"按钮 → `handleClaim` → `claimDailyCheckin()` → 实际 POST `/v2/billing/meter/daily-checkin`，**与签到同一端点**（幂等，已签返回 10001）。**不存在独立领取 API**：脚本的 `daily-checkin` 调用本身就是"领取"动作，积分已在领（看 `total_credits` 是否每天 +100）。
+`claim_button_text` 是服务端返回的**静态按钮文案字段**，不是"未领取"标记；`action_button` 是"体验Buddy应用"推广链接（`workbuddy://home?...`），非积分领取。当前 `streak_bonus_credit` 通常为 0，无额外奖励可领——看到"立即领取"只是文案，并非漏领。
+
+### refresh / status 响应体的 `data` 嵌套层级（解析陷阱）
+三个接口响应体均为 `{"code":0,"data":{...payload...}}`。AirScript 的 `postJSON` 返回的 `resp.data` **即整个响应体**，因此取值要用两层：
+`rf.data.data.accessToken`、`rf.data.data.refreshToken`、`s.data.data.streak_days`、`s.data.data.total_credits`（**不是** `rf.data.accessToken`）。
+api-spec.md 的层级描述是对的。曾误判为"扁平 data"把 `.data.data` 改成 `.data`，会导致取不到令牌直接 FAIL，已回滚。
+
 ### 签到返回 `code=12153`
 见 api-spec.md 的错误码表：令牌不属于 plugin client，重新 `extract`。
 
